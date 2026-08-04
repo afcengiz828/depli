@@ -15,21 +15,31 @@ import {
 // The response is then formatted as a JSON object containing the status code, message, and request path.
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+    // The catch method is responsible for handling exceptions thrown during the request lifecycle. 
+    // It retrieves the response and request objects from the ArgumentsHost, determines the appropriate status code and message 
+    // based on the type of exception, and formats the response as a JSON object containing the status code, message, and request path.
   catch(exception: unknown, host: ArgumentsHost) {
+    // Switch to the HTTP context to access the request and response objects
     const ctx = host.switchToHttp();
+    // Get the response and request objects from the context
     const response = ctx.getResponse();
+    // Get the request object from the context
     const request = ctx.getRequest();
 
+    // Determine the status code and message based on the type of exception
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
+        // Determine the message to return in the response. If the exception is an instance of HttpException,
+        // it retrieves the response message from the exception. Otherwise, it defaults to a generic error message.
     const message =
       exception instanceof HttpException
         ? exception.getResponse()
         : 'Internal server error';
 
+        // Format the response as a JSON object containing the status code, message, and request path, and send it back to the client.
     response.status(status).json({
       statusCode: status,
       message: typeof message === 'string' ? message : (message as any).message,
