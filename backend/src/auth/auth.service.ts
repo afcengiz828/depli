@@ -47,4 +47,26 @@ export class AuthService {
 
     return { accessToken };
   }
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { resetPasswordToken: token },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    const isExpired =
+      !user.resetPasswordExpiry || user.resetPasswordExpiry < new Date();
+
+    if (isExpired) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    user.password = await hashPassword(newPassword);
+    user.resetPasswordToken = null;
+    user.resetPasswordExpiry = null;
+
+    await this.userRepository.save(user);
+  }
 }

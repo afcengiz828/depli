@@ -56,3 +56,4 @@ describe('User Entity', () => {
     ).rejects.toThrow();
   });
 });
+

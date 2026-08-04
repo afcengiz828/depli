@@ -36,7 +36,30 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    // ... (mevcut register testlerin, aynı kalıyor)
+    it('should create a new user with a hashed password', async () => {
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+      (mockUserRepository.save as jest.Mock).mockImplementation((user) =>
+        Promise.resolve({ id: 'uuid-1234', ...user }),
+      );
+
+      const result = await service.register('test@depli.com', 'mySecret123');
+
+      expect(mockUserRepository.save).toHaveBeenCalled();
+      const savedUser = (mockUserRepository.save as jest.Mock).mock.calls[0][0];
+      expect(savedUser.password).not.toEqual('mySecret123');
+      expect(result.email).toEqual('test@depli.com');
+    });
+
+    it('should reject registration if email already exists', async () => {
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
+        id: 'existing-uuid',
+        email: 'test@depli.com',
+      });
+
+      await expect(
+        service.register('test@depli.com', 'mySecret123'),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 
   describe('login', () => {
@@ -65,4 +88,49 @@ describe('AuthService', () => {
       expect(result.accessToken).toEqual('fake-jwt-token');
     });
   });
+
+  describe('resetPassword', () => {
+  it('should update password with a valid reset token', async () => {
+    const futureDate = new Date(Date.now() + 3600 * 1000); // 1 saat sonra
+
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
+      id: 'uuid-1234',
+      email: 'test@depli.com',
+      resetPasswordToken: 'valid-token',
+      resetPasswordExpiry: futureDate,
+    });
+    (mockUserRepository.save as jest.Mock).mockImplementation((user) =>
+      Promise.resolve(user),
+    );
+
+    await service.resetPassword('valid-token', 'newPassword123');
+
+    const savedUser = (mockUserRepository.save as jest.Mock).mock.calls[0][0];
+    expect(savedUser.password).not.toEqual('newPassword123');
+    expect(savedUser.resetPasswordToken).toBeNull();
+  });
+
+  it('should reject an invalid reset token', async () => {
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      service.resetPassword('invalid-token', 'newPassword123'),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('should reject an expired reset token', async () => {
+    const pastDate = new Date(Date.now() - 3600 * 1000); // 1 saat önce
+
+    (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
+      id: 'uuid-1234',
+      email: 'test@depli.com',
+      resetPasswordToken: 'valid-token',
+      resetPasswordExpiry: pastDate,
+    });
+
+    await expect(
+      service.resetPassword('valid-token', 'newPassword123'),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+});
 });
