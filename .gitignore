@@ -1,0 +1,35 @@
+# Bağımlılıklar
+node_modules/
+**/node_modules/
+
+# Ortam değişkenleri (KRİTİK — asla commit'leme)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Build çıktıları
+dist/
+build/
+.next/
+out/
+
+# Loglar
+*.log
+npm-debug.log*
+
+# IDE / editör
+.vscode/
+.idea/
+*.swp
+
+# İşletim sistemi dosyaları
+.DS_Store
+Thumbs.db
+
+# Test coverage raporları
+coverage/
+
+# TypeScript build bilgisi
+*.tsbuildinfo
