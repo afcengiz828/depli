@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 import { OneToMany } from 'typeorm';
-import { ProjectEntity } from '../../project/entities/project.entity';
+import { ProjectEntity } from '../../projects/entities/project.entity';
 
 @Entity('users')
 export class User {
