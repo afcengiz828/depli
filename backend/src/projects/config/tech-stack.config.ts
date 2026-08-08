@@ -1,5 +1,5 @@
 export let techStack = {
-frontend: {
+        frontend: {
             react: {
                 versions: ["18.2.0", "17.0.2"],
                 baseImage: "node:18-alpine"
