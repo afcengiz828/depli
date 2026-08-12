@@ -43,6 +43,13 @@ describe("TechStack Config", () => {
                 expect((subValue as any)?.versions).toBeInstanceOf(Array);
                 expect(subValue).toHaveProperty("baseImage");
                 expect(typeof ((subValue as any)?.baseImage)).toBe("string");
+
+                expect(subValue).toHaveProperty("baseImage");
+                expect(typeof (subValue as any)?.baseImage).toBe("string");
+                // imageTag undefined olabilir, bu yüzden varlığını değil tipini kontrol ediyoruz
+                if ((subValue as any)?.imageTag !== undefined) {
+                    expect(typeof (subValue as any)?.imageTag).toBe("string");
+                }
             }
         }
     });

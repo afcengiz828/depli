@@ -1,66 +1,24 @@
 export let techStack = {
-        frontend: {
-            react: {
-                versions: ["18.2.0", "17.0.2"],
-                baseImage: "node:18-alpine"
-            },
-            angular: {
-                versions: ["15.2.0", "14.2.0"],
-                baseImage: "node:18-alpine"
-            },
-            vue: {
-                versions: ["3.2.47", "2.7.14"],
-                baseImage: "node:18-alpine"
-            },
-            svelte: {
-                versions: ["4.1.4", "3.59.1"],
-                baseImage: "node:18-alpine"
-            },
-            nextjs: {
-                versions: ["13.4.12", "12.3.4"],
-                baseImage: "node:18-alpine"
-            }
-        },
-        backend: {
-            nodejs: {
-                versions: ["20.5.0", "18.18.0"],
-                baseImage: "node:20-alpine"
-            },
-            python: {
-                versions: ["3.12.0", "3.11.8"],
-                baseImage: "python:3.12-alpine"
-            },
-            php: {
-                versions: ["8.2.12", "8.1.22"],
-                baseImage: "php:8.2-fpm-alpine"
-            },
-            java: {
-                versions: ["21", "20"],
-                baseImage: "openjdk:21-alpine"
-            },
-            go: {
-                versions: ["1.23", "1.22"],
-                baseImage: "golang:1.23-alpine"
-            }
-        },
-        database: {
-            postgresql: {
-                versions: ["16", "15"],
-                baseImage: "postgres:16-alpine"
-            },
-            mysql: {
-                versions: ["8.0", "5.7"],
-                baseImage: "mysql:8.0"
-            },
-            mongodb: {
-                versions: ["6.0", "5.0"],
-                baseImage: "mongo:6.0"
-            },
-            redis: {
-                versions: ["7.0", "6.2"],
-                baseImage: "redis:7.0-alpine"
-            }
-        }
+  frontend: {
+    react: { versions: ['18.2.0', '17.0.2'], baseImage: 'node', imageTag: 'alpine' },
+    angular: { versions: ['15.2.0', '14.2.0'], baseImage: 'node', imageTag: 'alpine' },
+    vue: { versions: ['3.2.47', '2.7.14'], baseImage: 'node', imageTag: 'alpine' },
+    svelte: { versions: ['4.1.4', '3.59.1'], baseImage: 'node', imageTag: 'alpine' },
+    nextjs: { versions: ['13.4.12', '12.3.4'], baseImage: 'node', imageTag: 'alpine' },
+  },
+  backend: {
+    nodejs: { versions: ['20.5.0', '18.18.0'], baseImage: 'node', imageTag: 'alpine' },
+    python: { versions: ['3.12.0', '3.11.8'], baseImage: 'python', imageTag: 'alpine' },
+    php: { versions: ['8.2.12', '8.1.22'], baseImage: 'php', imageTag: 'fpm-alpine' },
+    java: { versions: ['21', '20'], baseImage: 'openjdk', imageTag: 'alpine' },
+    go: { versions: ['1.23', '1.22'], baseImage: 'golang', imageTag: 'alpine' },
+  },
+  database: {
+    postgresql: { versions: ['16', '15'], baseImage: 'postgres', imageTag: 'alpine' },
+    mysql: { versions: ['8.0', '5.7'], baseImage: 'mysql', imageTag: undefined },
+    mongodb: { versions: ['6.0', '5.0'], baseImage: 'mongo', imageTag: undefined },
+    redis: { versions: ['7.0', '6.2'], baseImage: 'redis', imageTag: 'alpine' },
+  }
 }
 
 export let ImagesList = [
