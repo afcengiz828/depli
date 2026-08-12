@@ -9,7 +9,10 @@ export class EncryptionService {
 
   // Çevre değişkeninden gelen anahtarı alıp 32 byte olmasını garanti ediyoruz
   private get key(): Buffer {
-    const secret = process.env.ENCRYPTION_KEY || 'default-dev-secret-key-1234567890';
+    const secret = process.env.ENCRYPTION_KEY; // || kısmı kaldırıldı
+    if (!secret) {
+      throw new Error('ENCRYPTION_KEY environment variable is not set');
+    }
     return Buffer.from(secret.padEnd(this.keyLength, '0').slice(0, this.keyLength));
   }
 

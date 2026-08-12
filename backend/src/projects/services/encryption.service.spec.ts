@@ -37,4 +37,11 @@ describe('EncryptionService', () => {
   it('should throw error on invalid encrypted text format', () => {
     expect(() => service.decrypt('invalid-format-without-colon')).toThrow();
   });
+
+  it('should produce different encrypted text for same input', () => {
+    const plainText = 'my-github-secret-token';
+    const encrypted1 = service.encrypt(plainText);
+    const encrypted2 = service.encrypt(plainText);
+    expect(encrypted1).not.toEqual(encrypted2);
+  });
 });
