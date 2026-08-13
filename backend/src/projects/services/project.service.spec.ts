@@ -249,7 +249,7 @@ describe('ProjectService', () => {
 
             // findOne metodu project-uuid ile çağrılmış olmalı.
             expect(mockProjectRepository.findOne).toHaveBeenCalledWith({
-                where: { id: 'project-uuid', userId: 'user-uuid' }
+                where: { id: 'project-uuid' }
             });
             // sonuçta projenin id si doğru olmalı
             expect(result.id).toBe('project-uuid');
