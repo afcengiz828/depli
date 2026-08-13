@@ -5,6 +5,7 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
+import { ProjectEntity } from '../src/projects/entities/project.entity';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
@@ -24,7 +25,7 @@ describe('Auth (e2e)', () => {
           username: container.getUsername(),
           password: container.getPassword(),
           database: container.getDatabase(),
-          entities: [User],
+          entities: [User, ProjectEntity],
           synchronize: true,
         }),
         AuthModule,
