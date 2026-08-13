@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { User } from './user.entity';
+import { ProjectEntity } from '../../projects/entities/project.entity';
 
 describe('User Entity', () => {
   let container: StartedPostgreSqlContainer;
@@ -16,7 +17,7 @@ describe('User Entity', () => {
       username: container.getUsername(),
       password: container.getPassword(),
       database: container.getDatabase(),
-      entities: [User],
+      entities: [User, ProjectEntity],
       synchronize: true,
     });
 
