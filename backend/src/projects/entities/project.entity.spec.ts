@@ -75,6 +75,8 @@ describe("Project Entity (Integration)", () => {
         expect(table?.findColumnByName("createdAt")?.type).toBe("timestamp with time zone");
         // updatedAt kolonu var mı ve doğru tipte mi?
         expect(table?.findColumnByName("updatedAt")?.type).toBe("timestamp with time zone");
+        // dockerConfig kolonu var mı ve doğru tipte mi?
+        expect(table?.findColumnByName("dockerConfig")?.type).toBe("text");
     });
 
     // Test 2: Başarılı bir şekilde proje kaydı oluşturma ve varsayılan status değerini doğrulama
@@ -183,6 +185,6 @@ describe("Project Entity (Integration)", () => {
     await expect(projectRepo.save(invalidProject)).rejects.toThrow();
   }); 
 
-
+  
   
 });

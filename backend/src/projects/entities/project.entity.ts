@@ -30,6 +30,9 @@ export class ProjectEntity {
     @Column({ type: "varchar", length: 255, nullable: true })
     githubUrl: string;
 
+    @Column({ nullable: true })
+    githubToken?: string;
+
     @Column({ type: "jsonb"})
     techStack: Record<string, any>;
 
@@ -37,7 +40,7 @@ export class ProjectEntity {
     createdAt: Date;
 
     @UpdateDateColumn({ type: "timestamp with time zone" })
-  updatedAt: Date;
+    updatedAt: Date;
     
     @Column({ type: "uuid"})
     userId: string;
@@ -45,4 +48,7 @@ export class ProjectEntity {
     @ManyToOne(() => User, (user: User) => user.projects, { onDelete: "CASCADE" })
     @JoinColumn({ name: "userId" })
     user: User;
+
+    @Column({ type: 'text', nullable: true })
+    dockerConfig: string;
 }
