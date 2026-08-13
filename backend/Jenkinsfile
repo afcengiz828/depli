@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+
+    tools {
+        nodejs 'NodeJS-20'
+    }
+
+    environment {
+        CI = 'true'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir('backend') {
+                    sh 'npm install'
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                dir('backend') {
+                    sh 'npm run test'
+                }
+            }
+        }
+
+        stage('E2E Tests') {
+            steps {
+                dir('backend') {
+                    sh 'npm run test:e2e'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline tamamlandı.'
+        }
+        success {
+            echo 'Tüm testler başarılı!'
+        }
+        failure {
+            echo 'Pipeline başarısız oldu!'
+        }
+    }
+}
