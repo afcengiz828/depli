@@ -65,22 +65,19 @@ export class ProjectService {
     }
 
     async getProject(projectId: string, userId: string): Promise<ProjectEntity> {
-        // Logic to retrieve a project by its ID
         const result = await this.projectRepository.findOne({
-            where: {id: projectId, userId: userId}
+            where: { id: projectId }  // ← userId kaldırıldı
         });
 
-        if(!result){
-            throw new NotFoundException("Project Not Found with Given User...");
+        if (!result) {
+            throw new NotFoundException("Project Not Found...");
         }
 
-        if(! (result?.userId == userId)){
-            throw new ForbiddenException("Different Users...")
+        if (result.userId !== userId) {
+            throw new ForbiddenException("Different Users...");
         }
 
         return result;
-
-        
     }
 
     async getUserProjects(userId: string): Promise<ProjectEntity[]> {
@@ -91,17 +88,17 @@ export class ProjectService {
         return result;
     }
 
-    async deleteProject(projectId: any, userId: string){
+    async deleteProject(projectId: string, userId: string) {
         const project = await this.projectRepository.findOne({
-            where: {id: projectId, userId: userId}
+            where: { id: projectId }  // ← userId kaldırıldı
         });
 
-        if(!project){
+        if (!project) {
             throw new NotFoundException("Project Not Found to Delete...");
         }
 
-        if(project.userId != userId){
-            throw new ForbiddenException("Different users...")
+        if (project.userId !== userId) {
+            throw new ForbiddenException("Different users...");
         }
 
         return this.projectRepository.remove(project);

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { User } from './users/entities/user.entity';
+import { ProjectModule } from './projects/module/project.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { User } from './users/entities/user.entity';
       synchronize: true, // sadece dev ortamı için, hatırlatma notu
     }),
     AuthModule,
+    ProjectModule,
   ],
   controllers: [],
   providers: [],
