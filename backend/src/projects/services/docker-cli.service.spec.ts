@@ -1,0 +1,197 @@
+import { execFile } from 'child_process';
+import { DockerCliService } from './docker-cli.service';
+
+jest.mock('child_process');
+
+describe('DockerCliService', () => {
+    let service: DockerCliService;
+    const composeFilePath = '/tmp/depli-test-workspace/test-project/docker-compose.yml';
+
+beforeEach(() => {
+    service = new DockerCliService();
+    jest.clearAllMocks();
+});
+
+const mockSuccess = (stdout: string = 'mocked stdout output') => {
+    (execFile as unknown as jest.Mock).mockImplementation(
+        (_file, _args, callback) => {
+            callback(null, { stdout, stderr: '' });  // ← tek obje olarak
+        },
+    );
+};
+
+const mockFailure = (stderr: string = 'docker: command failed') => {
+    (execFile as unknown as jest.Mock).mockImplementation(
+        (_file, _args, callback) => {
+            const error: any = new Error(stderr);
+            error.stderr = stderr;
+            callback(error);
+        },
+    );
+};
+
+describe('up', () => {
+    it('should call execFile with correct docker compose up arguments', async () => {
+        mockSuccess();
+
+        await service.up(composeFilePath);
+
+        expect(execFile).toHaveBeenCalledWith(
+            'docker',
+            ['compose', '-f', composeFilePath, 'up', '-d'],
+            expect.any(Function),
+        );
+    });
+
+    it('should return success true when command succeeds', async () => {
+        mockSuccess('containers started');
+
+        const result = await service.up(composeFilePath);
+
+        expect(result.success).toBe(true);
+        expect(result.output).toBe('containers started');
+    });
+
+    it('should return success false when command fails', async () => {
+        mockFailure('port already in use');
+
+        const result = await service.up(composeFilePath);
+
+        expect(result.success).toBe(false);
+        expect(result.output).toContain('port already in use');
+    });
+});
+
+describe('down', () => {
+    it('should call execFile with correct docker compose down arguments', async () => {
+        mockSuccess();
+
+        await service.down(composeFilePath);
+
+        expect(execFile).toHaveBeenCalledWith(
+            'docker',
+            ['compose', '-f', composeFilePath, 'down'],
+            expect.any(Function),
+        );
+    });
+
+    it('should return success true when command succeeds', async () => {
+        mockSuccess('containers removed');
+
+        const result = await service.down(composeFilePath);
+
+        expect(result.success).toBe(true);
+    });
+
+    it('should return success false when command fails', async () => {
+        mockFailure('no such file');
+
+        const result = await service.down(composeFilePath);
+
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('stop', () => {
+    it('should call execFile with correct docker compose stop arguments', async () => {
+        mockSuccess();
+
+        await service.stop(composeFilePath);
+
+        expect(execFile).toHaveBeenCalledWith(
+            'docker',
+            ['compose', '-f', composeFilePath, 'stop'],
+            expect.any(Function),
+        );
+    });
+
+    it('should return success true when command succeeds', async () => {
+        mockSuccess('containers stopped');
+
+        const result = await service.stop(composeFilePath);
+
+        expect(result.success).toBe(true);
+    });
+
+    it('should return success false when command fails', async () => {
+        mockFailure('container not found');
+
+        const result = await service.stop(composeFilePath);
+
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('start', () => {
+    it('should call execFile with correct docker compose start arguments', async () => {
+        mockSuccess();
+
+        await service.start(composeFilePath);
+
+        expect(execFile).toHaveBeenCalledWith(
+            'docker',
+            ['compose', '-f', composeFilePath, 'start'],
+            expect.any(Function),
+        );
+    });
+
+    it('should return success true when command succeeds', async () => {
+        mockSuccess('containers started');
+
+        const result = await service.start(composeFilePath);
+
+        expect(result.success).toBe(true);
+    });
+
+    it('should return success false when command fails', async () => {
+        mockFailure('container not found');
+
+        const result = await service.start(composeFilePath);
+
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('ps', () => {
+    it('should call execFile with correct ps arguments including json format', async () => {
+        mockSuccess('');
+
+        await service.ps(composeFilePath);
+
+        expect(execFile).toHaveBeenCalledWith(
+            'docker',
+            ['compose', '-f', composeFilePath, 'ps', '--format', 'json'],
+            expect.any(Function),
+        );
+    });
+
+    it('should parse JSON lines output into service status array', async () => {
+        const line1 = JSON.stringify({ Name: 'backend', State: 'running' });
+        const line2 = JSON.stringify({ Name: 'database', State: 'running' });
+        mockSuccess(`${line1}\n${line2}`);
+
+        const result = await service.ps(composeFilePath);
+
+        expect(result.services).toEqual([
+            { name: 'backend', state: 'running' },
+            { name: 'database', state: 'running' },
+        ]);
+    });
+
+    it('should return empty services array when output is empty', async () => {
+        mockSuccess('');
+
+        const result = await service.ps(composeFilePath);
+
+        expect(result.services).toEqual([]);
+    });
+
+    it('should return empty services array when command fails', async () => {
+        mockFailure('no such service');
+
+        const result = await service.ps(composeFilePath);
+
+        expect(result.services).toEqual([]);
+    });
+});
+});
