@@ -6,12 +6,14 @@ import { ComposeFileService } from './compose-file.service';
 import { DockerCliService } from './docker-cli.service';
 import { ProjectEntity } from '../entities/project.entity';
 import { ProjectStatus } from '../enums/project-status.enum';
+import { HealthcheckService } from './healthcheck.service';
 
 describe('ContainerLifecycleService', () => {
     let service: ContainerLifecycleService;
     let mockProjectRepository: any;
     let mockComposeFileService: any;
     let mockDockerCliService: any;
+    let mockHealthcheckService: any;
 
     const testUserId = 'user-uuid-123';
     const testProjectId = 'project-uuid-456';
@@ -26,6 +28,9 @@ describe('ContainerLifecycleService', () => {
     };
 
     beforeEach(async () => {
+
+        jest.clearAllMocks();
+
         mockProjectRepository = {
             findOne: jest.fn(),
             save: jest.fn(),
@@ -44,12 +49,17 @@ describe('ContainerLifecycleService', () => {
             start: jest.fn(),
         };
 
+        mockHealthcheckService = {
+            waitUntilHealthy: jest.fn(),
+        };
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 ContainerLifecycleService,
                 { provide: getRepositoryToken(ProjectEntity), useValue: mockProjectRepository },
                 { provide: ComposeFileService, useValue: mockComposeFileService },
                 { provide: DockerCliService, useValue: mockDockerCliService },
+                { provide: HealthcheckService, useValue: mockHealthcheckService },
             ],
         }).compile();
 
@@ -62,6 +72,7 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: 'containers started' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
 
             const result = await service.startContainer(testProjectId, testUserId);
             expect(result.status).toBe(ProjectStatus.RUNNING);
@@ -98,6 +109,7 @@ describe('ContainerLifecycleService', () => {
             });
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
 
             await service.startContainer(testProjectId, testUserId);
 
@@ -109,6 +121,7 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
 
             await service.startContainer(testProjectId, testUserId);
 
@@ -123,6 +136,7 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
 
             await service.startContainer(testProjectId, testUserId);
 
@@ -141,6 +155,16 @@ describe('ContainerLifecycleService', () => {
                 mockProjectRepository.save.mock.calls.length - 1
             ][0];
             expect(lastSaveCall.status).toBe(ProjectStatus.STOPPED);
+        });
+
+        it('should set status to stopped when healthcheck fails', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({ ...validProject });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
+            mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(false);
+
+            await expect(service.startContainer(testProjectId, testUserId)).rejects.toThrow();
         });
     });
 

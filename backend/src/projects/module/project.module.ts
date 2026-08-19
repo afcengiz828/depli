@@ -12,6 +12,7 @@ import { ComposeFileService } from "../services/compose-file.service";
 import { DockerCliService } from "../services/docker-cli.service";
 import { ContainerLifecycleService } from "../services/container-lifecycle.service";
 import { ContainerController } from "../controllers/container.controller";
+import { HealthcheckService } from "../services/healthcheck.service";
 
 @Module({
     imports: [
@@ -28,6 +29,7 @@ import { ContainerController } from "../controllers/container.controller";
         ComposeFileService,
         DockerCliService,
         ContainerLifecycleService,
+        HealthcheckService,
     ]
 })
 export class ProjectModule {}

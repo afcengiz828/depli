@@ -5,6 +5,7 @@ import { DockerCliService } from "./docker-cli.service";
 import { Repository } from "typeorm";
 import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { ProjectStatus } from "../enums/project-status.enum";
+import { HealthcheckService } from "./healthcheck.service";
 
 @Injectable()
 export class ContainerLifecycleService {
@@ -13,6 +14,7 @@ export class ContainerLifecycleService {
         private readonly projectRepository: Repository<ProjectEntity>,
             private readonly composeFileService: ComposeFileService,
                 private readonly dockerCliService: DockerCliService,
+                    private readonly healthcheckService: HealthcheckService,
     ) {}
 
     private async findProjectOrThrow(projectId: string, userId: string): Promise<ProjectEntity> {
@@ -31,26 +33,29 @@ export class ContainerLifecycleService {
 
     async startContainer(pId: string, uId: string) {
         const project = await this.findProjectOrThrow(pId, uId);
-
         if(!project.dockerConfig){
-             throw new  BadRequestException("dockerConfig is missing, technology selection required");
+            throw new BadRequestException("dockerConfig is missing, technology selection required");
         }
-
         project.status = ProjectStatus.PROVISIONING;
-
         await this.projectRepository.save(project);
-
         const filePath = await this.composeFileService.writeComposeFile(project.id, project.dockerConfig);
-
         const result = await this.dockerCliService.up(filePath);
 
-        if(result.success){
-            project.status = ProjectStatus.RUNNING;
-            return await this.projectRepository.save(project);
-        }else {
+        if (!result.success) {
             project.status = ProjectStatus.STOPPED;
             await this.projectRepository.save(project);
             throw new InternalServerErrorException(result.output);
+        }
+
+        const isHealthy = await this.healthcheckService.waitUntilHealthy(filePath);
+        console.log('DEBUG isHealthy:', isHealthy);  // ← geçici
+        if (isHealthy) {
+            project.status = ProjectStatus.RUNNING;
+            return await this.projectRepository.save(project);
+        } else {
+            project.status = ProjectStatus.STOPPED;
+            await this.projectRepository.save(project);
+            throw new InternalServerErrorException('Containers did not become healthy within the timeout period');
         }
     }
 
