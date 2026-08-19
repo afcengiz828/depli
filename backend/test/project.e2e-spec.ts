@@ -19,6 +19,8 @@ describe("Projects (e2e)", () => {
     beforeAll(async () => {
         container = await new PostgreSqlContainer("postgres:16").start();
         process.env.JWT_SECRET = "e2e-test-secret";
+        process.env.DEPLI_WORKSPACE_DIR = '/tmp/depli-project-e2e-workspace';  
+        process.env.ENCRYPTION_KEY = 'e2e-test-encryption-key-32-chars'; 
 
         // Test modülünü geçici olarak kuruyoruz.
         const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -55,6 +57,8 @@ describe("Projects (e2e)", () => {
     afterAll(async () => {
         await app.close();
         await container.stop();
+        delete process.env.DEPLI_WORKSPACE_DIR;
+        delete process.env.ENCRYPTION_KEY;
     });
 
     // Geçerli token ve doğru bilgiler ile proje oluşturulmalı.
