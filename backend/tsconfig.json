@@ -19,13 +19,8 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
-    
+    "outDir": "./dist",
+    "baseUrl": "./"
   },
-  "include": ["src/**/*"],
-  "outDir": "./dist",
-  "baseUrl": "./", 
-
-  
-  
-
+  "include": ["src/**/*"]
 }
