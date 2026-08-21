@@ -33,3 +33,8 @@ coverage/
 
 # TypeScript build bilgisi
 *.tsbuildinfo
+
+backend/dist/
+backend/src/**/*.js
+backend/src/**/*.js.map
+backend/src/**/*.d.ts
