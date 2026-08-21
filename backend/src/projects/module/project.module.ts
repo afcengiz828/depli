@@ -13,6 +13,7 @@ import { DockerCliService } from "../services/docker-cli.service";
 import { ContainerLifecycleService } from "../services/container-lifecycle.service";
 import { ContainerController } from "../controllers/container.controller";
 import { HealthcheckService } from "../services/healthcheck.service";
+import { EnvVariableService } from "../services/env-variable.service";
 
 @Module({
     imports: [
@@ -30,6 +31,7 @@ import { HealthcheckService } from "../services/healthcheck.service";
         DockerCliService,
         ContainerLifecycleService,
         HealthcheckService,
+        EnvVariableService,
     ]
 })
 export class ProjectModule {}
