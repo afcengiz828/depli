@@ -51,4 +51,7 @@ export class ProjectEntity {
 
     @Column({ type: 'text', nullable: true })
     dockerConfig: string;
+
+    @Column({ type: 'jsonb', nullable: true })
+    envVariables: Record<string, string> | null;
 }

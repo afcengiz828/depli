@@ -77,6 +77,8 @@ describe("Project Entity (Integration)", () => {
         expect(table?.findColumnByName("updatedAt")?.type).toBe("timestamp with time zone");
         // dockerConfig kolonu var mı ve doğru tipte mi?
         expect(table?.findColumnByName("dockerConfig")?.type).toBe("text");
+        // env variables kolonu var mı
+        expect(table?.findColumnByName("envVariables")?.type).toBe("jsonb");
     });
 
     // Test 2: Başarılı bir şekilde proje kaydı oluşturma ve varsayılan status değerini doğrulama
