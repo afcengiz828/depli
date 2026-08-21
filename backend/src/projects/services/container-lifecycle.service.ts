@@ -48,7 +48,6 @@ export class ContainerLifecycleService {
         }
 
         const isHealthy = await this.healthcheckService.waitUntilHealthy(filePath);
-        console.log('DEBUG isHealthy:', isHealthy);  // ← geçici
         if (isHealthy) {
             project.status = ProjectStatus.RUNNING;
             return await this.projectRepository.save(project);
