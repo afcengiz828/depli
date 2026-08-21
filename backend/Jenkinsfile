@@ -34,7 +34,9 @@ pipeline {
 
         stage('E2E Tests') {
             when {
-                branch 'test'
+                expression {
+                    return env.GIT_BRANCH == 'origin/test' || env.GIT_BRANCH == 'test'
+                }
             }
             steps {
                 dir('backend') {
