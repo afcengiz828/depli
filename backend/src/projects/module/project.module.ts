@@ -15,6 +15,8 @@ import { ContainerController } from "../controllers/container.controller";
 import { HealthcheckService } from "../services/healthcheck.service";
 import { EnvVariableService } from "../services/env-variable.service";
 import { LogStreamService } from "../services/log-stream.service";
+import { WsAuthService } from "../guards/ws-auth.service";
+import { LogStreamGateway } from "../services/log-stream.gateway";
 
 @Module({
     imports: [
@@ -34,6 +36,9 @@ import { LogStreamService } from "../services/log-stream.service";
         HealthcheckService,
         EnvVariableService,
         LogStreamService,
+        WsAuthService,
+        LogStreamService,
+        LogStreamGateway,
     ]
 })
 export class ProjectModule {}
