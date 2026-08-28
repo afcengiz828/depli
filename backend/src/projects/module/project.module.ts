@@ -14,6 +14,7 @@ import { ContainerLifecycleService } from "../services/container-lifecycle.servi
 import { ContainerController } from "../controllers/container.controller";
 import { HealthcheckService } from "../services/healthcheck.service";
 import { EnvVariableService } from "../services/env-variable.service";
+import { LogStreamService } from "../services/log-stream.service";
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import { EnvVariableService } from "../services/env-variable.service";
         ContainerLifecycleService,
         HealthcheckService,
         EnvVariableService,
+        LogStreamService,
     ]
 })
 export class ProjectModule {}
