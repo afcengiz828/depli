@@ -81,6 +81,39 @@ export class DockerCliService {
         };
     }
 
+    execInteractive(
+        composeFilePath: string,
+        serviceName: string,
+        onData: (chunk: string) => void,
+    ): { write: (input: string) => void; stop: () => void } {
+        const child = spawn('docker', [
+            'compose',
+            '-f',
+            composeFilePath,
+            'exec',
+            '-i',
+            serviceName,
+            '/bin/sh',
+        ]);
+
+        child.stdout.on('data', (chunk: Buffer) => {
+            onData(chunk.toString());
+        });
+
+        child.stderr.on('data', (chunk: Buffer) => {
+            onData(chunk.toString());
+        });
+
+        return {
+            write: (input: string) => {
+                child.stdin.write(input);
+            },
+            stop: () => {
+                child.kill();
+            },
+        };
+    }
+
     private async runCommand(args: string[]): Promise<CommandResult> {
         // execFile'ı Promise'e saran ortak yardımcı metod
         // her komut metodunun (up/down/stop/start) bu yardımcıyı kullanması önerilir

@@ -197,8 +197,6 @@ describe('ps', () => {
     });
 });
 
-
-
 describe('streamLogs', () => {
     let mockChildProcess: any;
 
@@ -259,6 +257,83 @@ describe('streamLogs', () => {
         const onData = jest.fn();
 
         const { stop } = service.streamLogs(composeFilePath, onData);
+        stop();
+
+        expect(mockChildProcess.kill).toHaveBeenCalled();
+    });
+});
+
+describe('execInteractive', () => {
+    let mockChildProcess: any;
+
+    beforeEach(() => {
+        mockChildProcess = {
+            stdin: { write: jest.fn() },
+               stdout: { on: jest.fn() },
+               stderr: { on: jest.fn() },
+               kill: jest.fn(),
+        };
+
+        (spawn as unknown as jest.Mock).mockReturnValue(mockChildProcess);
+    });
+
+    it('should call spawn with correct docker compose exec arguments', () => {
+        const onData = jest.fn();
+
+        service.execInteractive(composeFilePath, 'backend', onData);
+
+        expect(spawn).toHaveBeenCalledWith('docker', [
+            'compose',
+            '-f',
+            composeFilePath,
+            'exec',
+            '-i',
+            'backend',
+            '/bin/sh',
+        ]);
+    });
+
+    it('should invoke onData callback when stdout emits data', () => {
+        const onData = jest.fn();
+
+        service.execInteractive(composeFilePath, 'backend', onData);
+
+        const stdoutDataHandler = mockChildProcess.stdout.on.mock.calls.find(
+            (call: any[]) => call[0] === 'data',
+        )[1];
+
+        stdoutDataHandler(Buffer.from('$ '));
+
+        expect(onData).toHaveBeenCalledWith('$ ');
+    });
+
+    it('should invoke onData callback when stderr emits data', () => {
+        const onData = jest.fn();
+
+        service.execInteractive(composeFilePath, 'backend', onData);
+
+        const stderrDataHandler = mockChildProcess.stderr.on.mock.calls.find(
+            (call: any[]) => call[0] === 'data',
+        )[1];
+
+        stderrDataHandler(Buffer.from('sh: command not found\n'));
+
+        expect(onData).toHaveBeenCalledWith('sh: command not found\n');
+    });
+
+    it('should write input to child process stdin when write is called', () => {
+        const onData = jest.fn();
+
+        const { write } = service.execInteractive(composeFilePath, 'backend', onData);
+        write('ls -la\n');
+
+        expect(mockChildProcess.stdin.write).toHaveBeenCalledWith('ls -la\n');
+    });
+
+    it('should kill the child process when stop is called', () => {
+        const onData = jest.fn();
+
+        const { stop } = service.execInteractive(composeFilePath, 'backend', onData);
         stop();
 
         expect(mockChildProcess.kill).toHaveBeenCalled();
