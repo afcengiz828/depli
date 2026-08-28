@@ -1,5 +1,7 @@
 import { execFile } from 'child_process';
 import { DockerCliService } from './docker-cli.service';
+import { spawn } from 'child_process';
+
 
 jest.mock('child_process');
 
@@ -192,6 +194,74 @@ describe('ps', () => {
         const result = await service.ps(composeFilePath);
 
         expect(result.services).toEqual([]);
+    });
+});
+
+
+
+describe('streamLogs', () => {
+    let mockChildProcess: any;
+
+    beforeEach(() => {
+        mockChildProcess = {
+            stdout: { on: jest.fn() },
+               stderr: { on: jest.fn() },
+               kill: jest.fn(),
+        };
+
+        (spawn as unknown as jest.Mock).mockReturnValue(mockChildProcess);
+    });
+
+    it('should call spawn with correct docker compose logs arguments', () => {
+        const onData = jest.fn();
+
+        service.streamLogs(composeFilePath, onData);
+
+        expect(spawn).toHaveBeenCalledWith('docker', [
+            'compose',
+            '-f',
+            composeFilePath,
+            'logs',
+            '-f',
+            '--no-color',
+        ]);
+    });
+
+    it('should invoke onData callback when stdout emits data', () => {
+        const onData = jest.fn();
+
+        service.streamLogs(composeFilePath, onData);
+
+        const stdoutDataHandler = mockChildProcess.stdout.on.mock.calls.find(
+            (call: any[]) => call[0] === 'data',
+        )[1];
+
+        stdoutDataHandler(Buffer.from('backend | Server started on port 3000\n'));
+
+        expect(onData).toHaveBeenCalledWith('backend | Server started on port 3000\n');
+    });
+
+    it('should invoke onData callback when stderr emits data', () => {
+        const onData = jest.fn();
+
+        service.streamLogs(composeFilePath, onData);
+
+        const stderrDataHandler = mockChildProcess.stderr.on.mock.calls.find(
+            (call: any[]) => call[0] === 'data',
+        )[1];
+
+        stderrDataHandler(Buffer.from('database | connection warning\n'));
+
+        expect(onData).toHaveBeenCalledWith('database | connection warning\n');
+    });
+
+    it('should kill the child process when stop is called', () => {
+        const onData = jest.fn();
+
+        const { stop } = service.streamLogs(composeFilePath, onData);
+        stop();
+
+        expect(mockChildProcess.kill).toHaveBeenCalled();
     });
 });
 });
