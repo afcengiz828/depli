@@ -80,6 +80,8 @@ describe("Project Entity (Integration)", () => {
         // env variables kolonu var mı
         expect(table?.findColumnByName("envVariables")?.type).toBe("jsonb");
         expect(table?.findColumnByName("domain")?.type).toBe("character varying");
+        expect(table?.findColumnByName("sslStatus")?.type).toBe("character varying");
+        expect(table?.findColumnByName("sslExpiresAt")?.type).toBe("timestamp with time zone");
     });
 
     // Test 2: Başarılı bir şekilde proje kaydı oluşturma ve varsayılan status değerini doğrulama
