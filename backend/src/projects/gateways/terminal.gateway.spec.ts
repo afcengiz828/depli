@@ -3,12 +3,13 @@ import { UnauthorizedException, NotFoundException, ForbiddenException } from '@n
 import { TerminalGateway } from './terminal.gateway';
 import { WsAuthService } from '../guards/ws-auth.service';
 import { TerminalService } from '../services/terminal.service';
+import { TerminalAuditService } from '../services/terminal-audit.service';
 
 describe('TerminalGateway', () => {
     let gateway: TerminalGateway;
     let mockWsAuthService: any;
     let mockTerminalService: any;
-
+    let mockTerminalAuditService: any;
     const testUserId = 'user-uuid-123';
     const testProjectId = 'project-uuid-456';
     const testServiceName = 'backend';
@@ -31,13 +32,19 @@ beforeEach(async () => {
         startTerminal: jest.fn(),
     };
 
+    mockTerminalAuditService = {
+        logCommand: jest.fn(),
+    };
     const module: TestingModule = await Test.createTestingModule({
         providers: [
             TerminalGateway,
             { provide: WsAuthService, useValue: mockWsAuthService },
             { provide: TerminalService, useValue: mockTerminalService },
+            { provide: TerminalAuditService, useValue: mockTerminalAuditService },
         ],
     }).compile();
+
+
 
     gateway = module.get<TerminalGateway>(TerminalGateway);
 });
@@ -166,6 +173,33 @@ describe('handleInput', () => {
         // client.data.terminalWrite hiç set edilmemiş
 
         expect(() => gateway.handleInput(client as any, { data: 'ls -la\n' })).not.toThrow();
+    });
+    it('should log command when input contains newline', () => {
+        const client = createMockClient();
+        const mockWriteFn = jest.fn();
+        client.data.terminalWrite = mockWriteFn;
+        client.data.projectId = testProjectId;
+        client.data.userId = testUserId;
+
+        gateway.handleInput(client as any, { data: 'ls -la\n' });
+
+        expect(mockTerminalAuditService.logCommand).toHaveBeenCalledWith(
+            testProjectId,
+            testUserId,
+            'ls -la\n',
+        );
+    });
+
+    it('should not log command when input does not contain newline', () => {
+        const client = createMockClient();
+        const mockWriteFn = jest.fn();
+        client.data.terminalWrite = mockWriteFn;
+        client.data.projectId = testProjectId;
+        client.data.userId = testUserId;
+
+        gateway.handleInput(client as any, { data: 'l' });
+
+        expect(mockTerminalAuditService.logCommand).not.toHaveBeenCalled();
     });
 });
 

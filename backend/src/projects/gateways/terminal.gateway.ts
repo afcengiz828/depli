@@ -10,6 +10,7 @@ import { Injectable } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import { WsAuthService } from '../guards/ws-auth.service';
 import { TerminalService } from '../services/terminal.service';
+import { TerminalAuditService } from '../services/terminal-audit.service';
 
 @Injectable()
 @WebSocketGateway({ namespace: 'terminal', cors: true })
@@ -17,6 +18,7 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
     constructor(
         private readonly wsAuthService: WsAuthService,
             private readonly terminalService: TerminalService,
+                private readonly terminalAuditService: TerminalAuditService,
     ) {}
 
     handleConnection(client: Socket) {
@@ -51,6 +53,7 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
 
             client.data.terminalWrite = write;
             client.data.stopTerminal = stop;
+            client.data.projectId = data.projectId;
         } catch (error) {
             client.emit('error', { message: error.message || 'Failed to start terminal session' });
         }
@@ -63,6 +66,10 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
     ) {
         if (client.data.terminalWrite) {
             client.data.terminalWrite(data.data);
+        }
+
+        if (data.data.includes('\n') && client.data.projectId) {
+            this.terminalAuditService.logCommand(client.data.projectId, client.data.userId, data.data);
         }
     }
 }
