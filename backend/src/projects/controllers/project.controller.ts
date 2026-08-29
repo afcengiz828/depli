@@ -1,12 +1,17 @@
-import { Controller, Get, Post, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Req, UseGuards, Put } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectService } from '../services/project.service';
 import { CreateProjectDto } from '../dto/create-project.dto';
+import { SetEnvVariablesDto } from '../dto/set-env-variables.dto';
+import { EnvVariableService } from "../services/env-variable.service";
 
 @Controller("projects") 
 @UseGuards(AuthGuard('jwt'))
 export class ProjectController {
-    constructor(private readonly projectService: ProjectService) {}
+    constructor(private readonly projectService: ProjectService,
+        private readonly envVariableService: EnvVariableService
+    ) {}
+
 
     @Post()
     async create (@Body() dto: CreateProjectDto, @Req() req) {
@@ -27,6 +32,18 @@ export class ProjectController {
     async remove(@Param('id') id: string, @Req() req) {
         await this.projectService.deleteProject(id, req.user.userId);
         return { message: 'Project deleted successfully' };
+    }
+
+    @Put(':id/env')
+    async setEnv(@Param('id') id: string, @Body() dto: SetEnvVariablesDto, @Req() req) {
+        await this.envVariableService.setEnvVariables(id, req.user.userId, dto.variables);
+        return { message: 'Environment variables updated successfully' };
+    }
+
+    @Get(':id/env')
+    async getEnv(@Param('id') id: string, @Req() req) {
+        const keys = await this.envVariableService.getEnvVariableKeys(id, req.user.userId);
+        return { keys };
     }
 
 }

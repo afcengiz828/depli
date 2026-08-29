@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
-
 const execFileAsync = promisify(execFile);
 
 interface CommandResult {
@@ -52,6 +51,67 @@ export class DockerCliService {
         });
 
         return {services}
+    }
+
+    streamLogs(
+        composeFilePath: string,
+        onData: (chunk: string) => void,
+    ): { stop: () => void } {
+        const child = spawn('docker', [
+            'compose',
+            '-f',
+            composeFilePath,
+            'logs',
+            '-f',
+            '--no-color',
+        ]);
+
+        child.stdout.on('data', (chunk: Buffer) => {
+            onData(chunk.toString());
+        });
+
+        child.stderr.on('data', (chunk: Buffer) => {
+            onData(chunk.toString());
+        });
+
+        return {
+            stop: () => {
+                child.kill();
+            },
+        };
+    }
+
+    execInteractive(
+        composeFilePath: string,
+        serviceName: string,
+        onData: (chunk: string) => void,
+    ): { write: (input: string) => void; stop: () => void } {
+        const child = spawn('docker', [
+            'compose',
+            '-f',
+            composeFilePath,
+            'exec',
+            '-i',
+            serviceName,
+            '/bin/sh',
+        ]);
+
+        child.stdout.on('data', (chunk: Buffer) => {
+            onData(chunk.toString());
+        });
+
+        child.stderr.on('data', (chunk: Buffer) => {
+            onData(chunk.toString());
+        });
+
+        return {
+            write: (input: string) => {
+                child.stdin.write(input);
+            },
+            stop: () => {
+                child.kill();
+            },
+        };
     }
 
     private async runCommand(args: string[]): Promise<CommandResult> {

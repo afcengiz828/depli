@@ -13,6 +13,10 @@ import { DockerCliService } from "../services/docker-cli.service";
 import { ContainerLifecycleService } from "../services/container-lifecycle.service";
 import { ContainerController } from "../controllers/container.controller";
 import { HealthcheckService } from "../services/healthcheck.service";
+import { EnvVariableService } from "../services/env-variable.service";
+import { LogStreamService } from "../services/log-stream.service";
+import { WsAuthService } from "../guards/ws-auth.service";
+import { LogStreamGateway } from "../services/log-stream.gateway";
 
 @Module({
     imports: [
@@ -30,6 +34,11 @@ import { HealthcheckService } from "../services/healthcheck.service";
         DockerCliService,
         ContainerLifecycleService,
         HealthcheckService,
+        EnvVariableService,
+        LogStreamService,
+        WsAuthService,
+        LogStreamService,
+        LogStreamGateway,
     ]
 })
 export class ProjectModule {}
