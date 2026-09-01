@@ -7,6 +7,8 @@ import { DockerCliService } from './docker-cli.service';
 import { ProjectEntity } from '../entities/project.entity';
 import { ProjectStatus } from '../enums/project-status.enum';
 import { HealthcheckService } from './healthcheck.service';
+import { DomainAssignmentService } from './domain-assignment.service';
+import { SslCertificateService } from './ssl-certificate.service';
 
 describe('ContainerLifecycleService', () => {
     let service: ContainerLifecycleService;
@@ -14,6 +16,8 @@ describe('ContainerLifecycleService', () => {
     let mockComposeFileService: any;
     let mockDockerCliService: any;
     let mockHealthcheckService: any;
+    let mockDomainAssignmentService: any;
+    let mockSslCertificateService: any;
 
     const testUserId = 'user-uuid-123';
     const testProjectId = 'project-uuid-456';
@@ -53,6 +57,15 @@ describe('ContainerLifecycleService', () => {
             waitUntilHealthy: jest.fn(),
         };
 
+
+        // beforeEach içinde:
+        mockDomainAssignmentService = {
+            assignDomain: jest.fn(),
+        };
+
+        mockSslCertificateService = {
+            issueCertificate: jest.fn(),
+        };
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 ContainerLifecycleService,
@@ -60,6 +73,8 @@ describe('ContainerLifecycleService', () => {
                 { provide: ComposeFileService, useValue: mockComposeFileService },
                 { provide: DockerCliService, useValue: mockDockerCliService },
                 { provide: HealthcheckService, useValue: mockHealthcheckService },
+                { provide: DomainAssignmentService, useValue: mockDomainAssignmentService },
+                { provide: SslCertificateService, useValue: mockSslCertificateService },
             ],
         }).compile();
 
@@ -73,7 +88,8 @@ describe('ContainerLifecycleService', () => {
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: 'containers started' });
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
-
+            mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
+            mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
             const result = await service.startContainer(testProjectId, testUserId);
             expect(result.status).toBe(ProjectStatus.RUNNING);
         });
@@ -110,7 +126,8 @@ describe('ContainerLifecycleService', () => {
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
-
+            mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
+            mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
             await service.startContainer(testProjectId, testUserId);
 
             expect(savedSnapshots[0].status).toBe(ProjectStatus.PROVISIONING);
@@ -122,7 +139,8 @@ describe('ContainerLifecycleService', () => {
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
-
+            mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
+            mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
             await service.startContainer(testProjectId, testUserId);
 
             expect(mockComposeFileService.writeComposeFile).toHaveBeenCalledWith(
@@ -137,7 +155,8 @@ describe('ContainerLifecycleService', () => {
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
-
+            mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
+            mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
             await service.startContainer(testProjectId, testUserId);
 
             expect(mockDockerCliService.up).toHaveBeenCalledWith(testComposeFilePath);
@@ -165,6 +184,78 @@ describe('ContainerLifecycleService', () => {
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(false);
 
             await expect(service.startContainer(testProjectId, testUserId)).rejects.toThrow();
+        });
+
+        it('should assign domain when project has no domain after successful start', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({ ...validProject, domain: null });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
+            mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
+            mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
+            mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+
+            await service.startContainer(testProjectId, testUserId);
+
+            expect(mockDomainAssignmentService.assignDomain).toHaveBeenCalledWith(testProjectId, testUserId);
+        });
+
+        it('should not assign domain when project already has one', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({ ...validProject, domain: 'existing.depli.dev' });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
+            mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
+            mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+
+            await service.startContainer(testProjectId, testUserId);
+
+            expect(mockDomainAssignmentService.assignDomain).not.toHaveBeenCalled();
+        });
+
+        it('should issue SSL certificate when domain is assigned but SSL is missing', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({
+                ...validProject,
+                domain: 'existing.depli.dev',
+                sslStatus: null,
+            });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
+            mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
+            mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+
+            await service.startContainer(testProjectId, testUserId);
+
+            expect(mockSslCertificateService.issueCertificate).toHaveBeenCalledWith(testProjectId, testUserId);
+        });
+
+        it('should still set status to running even if domain assignment fails', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({ ...validProject, domain: null });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
+            mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
+            mockDomainAssignmentService.assignDomain.mockRejectedValue(new Error('DNS provider unavailable'));
+            mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+
+            const result = await service.startContainer(testProjectId, testUserId);
+
+            expect(result.status).toBe(ProjectStatus.RUNNING);
+        });
+
+        it('should still set status to running even if SSL issuance fails', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({ ...validProject, domain: null });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
+            mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
+            mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
+            mockSslCertificateService.issueCertificate.mockRejectedValue(new Error('ACME challenge failed'));
+
+            const result = await service.startContainer(testProjectId, testUserId);
+
+            expect(result.status).toBe(ProjectStatus.RUNNING);
         });
     });
 

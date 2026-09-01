@@ -4,6 +4,11 @@ import { dump } from 'js-yaml';
 import { ImagesList, techStack as techStackConfig } from '../config/tech-stack.config';
 import { TechStackService } from './tech-stack.service';
 
+const RESOURCE_LIMITS = {
+  cpus: '0.5',
+  memory: '512M',
+};
+
 @Injectable()
 export class DockerTemplateService {
   private techStackService: TechStackService;
@@ -50,16 +55,31 @@ export class DockerTemplateService {
           ports: [this.getBackendPort(backendKey)],
           depends_on: ['database'],
           environment: ['NODE_ENV=production', `PORT=${this.getBackendPortValue(backendKey)}`],
+          deploy: {
+            resources: {
+              limits: RESOURCE_LIMITS,
+            },
+          },
         },
         frontend: {
           image: frontendImage,
           ports: ['80:80'],
           depends_on: ['backend'],
+          deploy: {
+            resources: {
+              limits: RESOURCE_LIMITS,
+            },
+          },
         },
         database: {
           image: databaseImage,
           environment: databaseConfig.environment,
           volumes: databaseConfig.volumes,
+          deploy: {
+            resources: {
+              limits: RESOURCE_LIMITS,
+            },
+          },
         },
       },
       volumes: {

@@ -6,6 +6,8 @@ import { Repository } from "typeorm";
 import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { ProjectStatus } from "../enums/project-status.enum";
 import { HealthcheckService } from "./healthcheck.service";
+import { DomainAssignmentService } from "./domain-assignment.service";
+import { SslCertificateService } from "./ssl-certificate.service";
 
 @Injectable()
 export class ContainerLifecycleService {
@@ -15,6 +17,8 @@ export class ContainerLifecycleService {
             private readonly composeFileService: ComposeFileService,
                 private readonly dockerCliService: DockerCliService,
                     private readonly healthcheckService: HealthcheckService,
+                        private readonly domainAssignmentService: DomainAssignmentService,
+                            private readonly sslCertificateService: SslCertificateService,
     ) {}
 
     private async findProjectOrThrow(projectId: string, userId: string): Promise<ProjectEntity> {
@@ -33,11 +37,12 @@ export class ContainerLifecycleService {
 
     async startContainer(pId: string, uId: string) {
         const project = await this.findProjectOrThrow(pId, uId);
-        if(!project.dockerConfig){
+        if (!project.dockerConfig) {
             throw new BadRequestException("dockerConfig is missing, technology selection required");
         }
         project.status = ProjectStatus.PROVISIONING;
         await this.projectRepository.save(project);
+
         const filePath = await this.composeFileService.writeComposeFile(project.id, project.dockerConfig);
         const result = await this.dockerCliService.up(filePath);
 
@@ -48,15 +53,31 @@ export class ContainerLifecycleService {
         }
 
         const isHealthy = await this.healthcheckService.waitUntilHealthy(filePath);
-        console.log('DEBUG isHealthy:', isHealthy);  // ← geçici
-        if (isHealthy) {
-            project.status = ProjectStatus.RUNNING;
-            return await this.projectRepository.save(project);
-        } else {
+
+        if (!isHealthy) {
             project.status = ProjectStatus.STOPPED;
             await this.projectRepository.save(project);
             throw new InternalServerErrorException('Containers did not become healthy within the timeout period');
         }
+
+        if (!project.domain) {
+            try {
+                await this.domainAssignmentService.assignDomain(pId, uId);
+            } catch (error) {
+                // Domain ataması başarısız olsa bile konteynır çalışmaya devam eder — kullanıcıya loglanır
+            }
+        }
+
+        if (!project.sslStatus || project.sslStatus === 'failed') {
+            try {
+                await this.sslCertificateService.issueCertificate(pId, uId);
+            } catch (error) {
+                // SSL sertifikası başarısız olsa bile konteynır çalışmaya devam eder — kullanıcıya loglanır
+            }
+        }
+
+        project.status = ProjectStatus.RUNNING;
+        return await this.projectRepository.save(project);
     }
 
     async stopContainer (pId: string, uId: string) {

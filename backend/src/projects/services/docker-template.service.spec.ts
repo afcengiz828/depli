@@ -130,4 +130,42 @@ describe('DockerTemplateService', () => {
     expect(() => service.generateDockerComposeYmlFromPreset('COBOL Stack'))
       .toThrow('Invalid preset name');
   });
+
+  describe('resource limits', () => {
+    it('should include resource limits for backend service', () => {
+      const result = service.generateDockerComposeYml(validCombination);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.backend.deploy.resources.limits.cpus).toBe('0.5');
+      expect(parsed.services.backend.deploy.resources.limits.memory).toBe('512M');
+    });
+
+    it('should include resource limits for frontend service', () => {
+      const result = service.generateDockerComposeYml(validCombination);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.frontend.deploy.resources.limits.cpus).toBe('0.5');
+      expect(parsed.services.frontend.deploy.resources.limits.memory).toBe('512M');
+    });
+
+    it('should include resource limits for database service', () => {
+      const result = service.generateDockerComposeYml(validCombination);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.database.deploy.resources.limits.cpus).toBe('0.5');
+      expect(parsed.services.database.deploy.resources.limits.memory).toBe('512M');
+    });
+
+    it('should apply the same resource limit values across all services', () => {
+      const result = service.generateDockerComposeYml(validCombination);
+      const parsed = yaml.load(result) as any;
+
+      const backendLimits = parsed.services.backend.deploy.resources.limits;
+      const frontendLimits = parsed.services.frontend.deploy.resources.limits;
+      const databaseLimits = parsed.services.database.deploy.resources.limits;
+
+      expect(backendLimits).toEqual(frontendLimits);
+      expect(frontendLimits).toEqual(databaseLimits);
+    });
+  });
 });

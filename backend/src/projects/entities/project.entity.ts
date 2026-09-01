@@ -54,4 +54,16 @@ export class ProjectEntity {
 
     @Column({ type: 'jsonb', nullable: true })
     envVariables: Record<string, string> | null;
+
+
+
+    @Column({ type: 'varchar', nullable: true })
+    domain: string | null;
+
+    @Column({ type: 'varchar', nullable: true })
+    sslStatus: 'pending' | 'active' | 'expired' | 'failed' | null;
+
+    @Column({ type: 'timestamp with time zone', nullable: true })
+    sslExpiresAt: Date | null;
+
 }
