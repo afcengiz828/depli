@@ -17,6 +17,10 @@ import { EnvVariableService } from "../services/env-variable.service";
 import { LogStreamService } from "../services/log-stream.service";
 import { WsAuthService } from "../guards/ws-auth.service";
 import { LogStreamGateway } from "../services/log-stream.gateway";
+import { DomainAssignmentService } from "../services/domain-assignment.service";
+import { MockDnsProviderClient } from "../clients/mock-dns-provider.client";
+import { SslCertificateService } from "../services/ssl-certificate.service";
+import { MockAcmeClient } from "../clients/mock-acme.client";
 
 @Module({
     imports: [
@@ -39,6 +43,10 @@ import { LogStreamGateway } from "../services/log-stream.gateway";
         WsAuthService,
         LogStreamService,
         LogStreamGateway,
+        DomainAssignmentService,
+        { provide: 'DNS_PROVIDER_CLIENT', useClass: MockDnsProviderClient },
+        SslCertificateService,
+        { provide: 'ACME_CLIENT', useClass: MockAcmeClient },
     ]
 })
 export class ProjectModule {}
