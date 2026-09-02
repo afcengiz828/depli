@@ -1,17 +1,18 @@
 export let techStack = {
   frontend: {
-    react: { versions: ['18.2.0', '17.0.2'], baseImage: 'node', imageTag: 'alpine' },
-    angular: { versions: ['15.2.0', '14.2.0'], baseImage: 'node', imageTag: 'alpine' },
-    vue: { versions: ['3.2.47', '2.7.14'], baseImage: 'node', imageTag: 'alpine' },
-    svelte: { versions: ['4.1.4', '3.59.1'], baseImage: 'node', imageTag: 'alpine' },
-    nextjs: { versions: ['13.4.12', '12.3.4'], baseImage: 'node', imageTag: 'alpine' },
+    react: { versions: ['18.2.0', '17.0.2'], baseImage: 'node', imageTag: 'alpine', startCommand: 'npm install && npm start'  },
+    angular: { versions: ['15.2.0', '14.2.0'], baseImage: 'node', imageTag: 'alpine', startCommand: 'npm install && npm run serve' },
+    vue: { versions: ['3.2.47', '2.7.14'], baseImage: 'node', imageTag: 'alpine', startCommand: 'npm install && npm start'   },
+    svelte: { versions: ['4.1.4', '3.59.1'], baseImage: 'node', imageTag: 'alpine', startCommand: 'npm install && npm run dev '},
+    nextjs: { versions: ['13.4.12', '12.3.4'], baseImage: 'node', imageTag: 'alpine', startCommand: 'npm install && npm run dev '},
   },
+
   backend: {
-    nodejs: { versions: ['20.5.0', '18.18.0'], baseImage: 'node', imageTag: 'alpine' },
-    python: { versions: ['3.12.0', '3.11.8'], baseImage: 'python', imageTag: 'alpine' },
-    php: { versions: ['8.2.12', '8.1.22'], baseImage: 'php', imageTag: 'fpm-alpine' },
-    java: { versions: ['21', '20'], baseImage: 'openjdk', imageTag: 'alpine' },
-    go: { versions: ['1.23', '1.22'], baseImage: 'golang', imageTag: 'alpine' },
+    nodejs: { versions: ['20.5.0', '18.18.0'], baseImage: 'node', imageTag: 'alpine', startCommand: 'npm install && npm start' },
+    python: { versions: ['3.12.0', '3.11.8'], baseImage: 'python', imageTag: 'alpine', startCommand: 'pip install -r requirements.txt && python app.py' },
+    php: { versions: ['8.2.12', '8.1.22'], baseImage: 'php', imageTag: 'fpm-alpine', startCommand: 'composer install && php -S 0.0.0.0:8000' },
+    java: { versions: ['21', '20'], baseImage: 'openjdk', imageTag: 'alpine', startCommand: './mvnw spring-boot:run' },
+    go: { versions: ['1.23', '1.22'], baseImage: 'golang', imageTag: 'alpine', startCommand: 'go mod download && go run main.go' },
   },
   database: {
     postgresql: { versions: ['16', '15'], baseImage: 'postgres', imageTag: 'alpine' },
@@ -20,6 +21,7 @@ export let techStack = {
     redis: { versions: ['7.0', '6.2'], baseImage: 'redis', imageTag: 'alpine' },
   }
 }
+
 
 export let ImagesList = [
   {
