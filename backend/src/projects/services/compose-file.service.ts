@@ -68,4 +68,10 @@ export class ComposeFileService {
         const dirName = path.dirname(filePath);
         await fs.rm(dirName, {recursive:true, force:true});
     }
+
+    getRepoPath(projectId: string): string {
+        const composeFilePath = this.getComposeFilePath(projectId);
+        const projectDir = path.dirname(composeFilePath);
+        return path.join(projectDir, 'repo');
+    }
 }

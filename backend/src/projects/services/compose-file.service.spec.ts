@@ -150,4 +150,16 @@ describe('Compose File Tests', () => {
             await expect(service.deleteProjectDir(invalidProjectId)).rejects.toThrow();
         });
     });
+
+    describe('getRepoPath', () => {
+        it('should return the correct repo path for a valid projectId', () => {
+            const projectId = 'a1b2c3d4-e5f6-47a8-9b3c-1d2e3f4a5b6c';
+            const expectedPath = path.join(TEST_WORKSPACE, projectId, 'repo');
+            expect(service.getRepoPath(projectId)).toBe(expectedPath);
+        });
+
+        it('should throw an error for path traversal attempts', () => {
+            expect(() => service.getRepoPath('../../etc/passwd')).toThrow();
+        });
+    });
 });
