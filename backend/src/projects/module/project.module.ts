@@ -21,10 +21,15 @@ import { DomainAssignmentService } from "../services/domain-assignment.service";
 import { MockDnsProviderClient } from "../clients/mock-dns-provider.client";
 import { SslCertificateService } from "../services/ssl-certificate.service";
 import { MockAcmeClient } from "../clients/mock-acme.client";
+import { RenewalAlertService } from "../services/renewal-alert.service";
+import { TerminalService } from "../services/terminal.service";
+import { TerminalGateway } from "../gateways/terminal.gateway";
+import { TerminalAuditService } from "../services/terminal-audit.service";
+import { TerminalAuditLogEntity } from "../entities/terminal-audit-log.entity";
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([ProjectEntity]), 
+        TypeOrmModule.forFeature([ProjectEntity, TerminalAuditLogEntity]),
         AuthModule
     ],
     controllers: [ContainerController, ProjectController],
@@ -41,12 +46,15 @@ import { MockAcmeClient } from "../clients/mock-acme.client";
         EnvVariableService,
         LogStreamService,
         WsAuthService,
-        LogStreamService,
         LogStreamGateway,
         DomainAssignmentService,
         { provide: 'DNS_PROVIDER_CLIENT', useClass: MockDnsProviderClient },
         SslCertificateService,
         { provide: 'ACME_CLIENT', useClass: MockAcmeClient },
+        RenewalAlertService,
+        TerminalService,
+        TerminalGateway,
+        TerminalAuditService,
     ]
 })
 export class ProjectModule {}
