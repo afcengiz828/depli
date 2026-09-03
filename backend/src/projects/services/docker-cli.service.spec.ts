@@ -15,21 +15,21 @@ beforeEach(() => {
 });
 
 const mockSuccess = (stdout: string = 'mocked stdout output') => {
-    (execFile as unknown as jest.Mock).mockImplementation(
-        (_file, _args, callback) => {
-            callback(null, { stdout, stderr: '' });  // ← tek obje olarak
-        },
-    );
+  (execFile as unknown as jest.Mock).mockImplementation(
+    (_file, _args, _options, callback) => {
+      callback(null, { stdout, stderr: '' });
+    },
+  );
 };
 
 const mockFailure = (stderr: string = 'docker: command failed') => {
-    (execFile as unknown as jest.Mock).mockImplementation(
-        (_file, _args, callback) => {
-            const error: any = new Error(stderr);
-            error.stderr = stderr;
-            callback(error);
-        },
-    );
+  (execFile as unknown as jest.Mock).mockImplementation(
+    (_file, _args, _options, callback) => {
+      const error: any = new Error(stderr);
+      error.stderr = stderr;
+      callback(error);
+    },
+  );
 };
 
 describe('up', () => {
@@ -41,6 +41,7 @@ describe('up', () => {
         expect(execFile).toHaveBeenCalledWith(
             'docker',
             ['compose', '-f', composeFilePath, 'up', '-d'],
+            expect.any(Object),
             expect.any(Function),
         );
     });
@@ -73,6 +74,7 @@ describe('down', () => {
         expect(execFile).toHaveBeenCalledWith(
             'docker',
             ['compose', '-f', composeFilePath, 'down'],
+            expect.any(Object),
             expect.any(Function),
         );
     });
@@ -103,6 +105,7 @@ describe('stop', () => {
         expect(execFile).toHaveBeenCalledWith(
             'docker',
             ['compose', '-f', composeFilePath, 'stop'],
+            expect.any(Object),
             expect.any(Function),
         );
     });
@@ -133,6 +136,7 @@ describe('start', () => {
         expect(execFile).toHaveBeenCalledWith(
             'docker',
             ['compose', '-f', composeFilePath, 'start'],
+            expect.any(Object),
             expect.any(Function),
         );
     });
@@ -163,6 +167,7 @@ describe('ps', () => {
         expect(execFile).toHaveBeenCalledWith(
             'docker',
             ['compose', '-f', composeFilePath, 'ps', '--format', 'json'],
+            expect.any(Object),
             expect.any(Function),
         );
     });
