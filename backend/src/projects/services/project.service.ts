@@ -42,13 +42,7 @@ export class ProjectService {
             projectData.githubToken ? projectData.githubToken = this.encryptionService.encrypt(projectData.githubToken) : "" ;
         }
 
-        let DC: string;
-        // DockerConfig üretimi
-        if(!projectData.presetName){
-            DC = this.dockerTemplateService.generateDockerComposeYml(projectData.techStack);
-        }else {
-            DC = this.dockerTemplateService.generateDockerComposeYmlFromPreset(projectData.presetName);
-        }
+
 
         const savedData = this.projectRepository.create({
             name: projectData.name,
@@ -56,7 +50,6 @@ export class ProjectService {
             userId: userId,
             status: ProjectStatus.PROVISIONING,
             techStack: projectData.techStack,
-            dockerConfig: DC,
             githubToken: projectData.githubToken,
         })
         

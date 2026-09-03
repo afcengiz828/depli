@@ -99,7 +99,6 @@ describe('ProjectService', () => {
 
             expect(mockGithubService.isValidGithubUrl).toHaveBeenCalledWith(dto.githubUrl);
             expect(mockTechStackService.isValidTechStack).toHaveBeenCalledWith(dto.techStack);
-            expect(mockDockerTemplateService.generateDockerComposeYml).toHaveBeenCalledWith(dto.techStack);
             expect(mockProjectRepository.save).toHaveBeenCalled();
 
             expect(result.id).toBe('project-uuid');
@@ -198,39 +197,7 @@ describe('ProjectService', () => {
             expect(savedData.githubToken).toBe('encrypted-token');
         });
 
-        // Docker config dosyası için test
-        it('should generate and save docker config when creating a project', async () => {
-            (mockProjectRepository.save as jest.Mock).mockResolvedValue({
-                id: 'project-uuid',
-                name: 'Test Project',
-            });
-            (mockGithubService.isValidGithubUrl as jest.Mock).mockReturnValue(true);
-            (mockTechStackService.isValidTechStack as jest.Mock).mockReturnValue(true);
 
-            const dto: CreateProjectDto = {
-                name: 'Private Project',
-                githubUrl: 'https://github.com/user/private-repo',
-                techStack: { 
-                    backend: 'nodejs',
-                    backendVersion: '20.5.0',
-                    frontend: 'react',
-                    frontendVersion: '18.2.0',
-                    database: 'postgresql',
-                    databaseVersion: '16',
-                },
-                githubToken: 'my-secret-token', // !
-            };
-
-            await service.createProject(dto, 'user-uuid');
-
-            // 1. DockerTemplateService çağrıldı mı?
-            expect(mockDockerTemplateService.generateDockerComposeYml)
-                .toHaveBeenCalledWith(dto.techStack);
-
-            // 2. Üretilen config save'e gönderildi mi?
-            const savedData = (mockProjectRepository.save as jest.Mock).mock.calls[0][0];
-            expect(savedData.dockerConfig).toBe('yaml-content'); 
-        });
     });
 
     describe("getProject", () => {
