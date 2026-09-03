@@ -12,6 +12,7 @@ describe('DockerTemplateService', () => {
     database: 'postgresql',
     databaseVersion: '16'
   };
+  const testRepoPath = '/tmp/depli-test-workspace/project-uuid/repo';
 
   beforeEach(() => {
     service = new DockerTemplateService();
@@ -22,14 +23,14 @@ describe('DockerTemplateService', () => {
   });
 
   it('should generate a non-empty string', () => {
-    const result = service.generateDockerComposeYml(validCombination);
+    const result = service.generateDockerComposeYml(validCombination, testRepoPath);
     expect(result).toBeDefined();
     expect(typeof result).toBe('string');
     expect(result).not.toEqual('');
   });
 
   it('should generate valid YAML', () => {
-    const result = service.generateDockerComposeYml(validCombination);
+    const result = service.generateDockerComposeYml(validCombination, testRepoPath);
     let parsed: any;
     try {
       parsed = yaml.load(result);
@@ -40,7 +41,7 @@ describe('DockerTemplateService', () => {
   });
 
   it('should contain correct service names', () => {
-    const result = service.generateDockerComposeYml(validCombination);
+    const result = service.generateDockerComposeYml(validCombination, testRepoPath);
     const parsed = yaml.load(result) as any;
     expect(parsed.services).toHaveProperty('backend');
     expect(parsed.services).toHaveProperty('frontend');
@@ -48,7 +49,7 @@ describe('DockerTemplateService', () => {
   });
 
   it('should use correct images', () => {
-    const result = service.generateDockerComposeYml(validCombination);
+    const result = service.generateDockerComposeYml(validCombination, testRepoPath);
     const parsed = yaml.load(result) as any;
     expect(parsed.services.backend.image).toBe('node:20.5.0-alpine');
     expect(parsed.services.frontend.image).toBe('node:18.2.0-alpine');
@@ -56,7 +57,7 @@ describe('DockerTemplateService', () => {
   });
 
   it('should set correct database environment variables for postgresql', () => {
-    const result = service.generateDockerComposeYml(validCombination);
+    const result = service.generateDockerComposeYml(validCombination, testRepoPath);
     const parsed = yaml.load(result) as any;
     const env = parsed.services.database.environment;
     expect(env).toContain('POSTGRES_PASSWORD=${DB_PASSWORD}');
@@ -74,13 +75,13 @@ describe('DockerTemplateService', () => {
   });
 
   it('should define volumes', () => {
-    const result = service.generateDockerComposeYml(validCombination);
+    const result = service.generateDockerComposeYml(validCombination, testRepoPath);
     const parsed = yaml.load(result) as any;
     expect(parsed).toHaveProperty('volumes');
   });
 
   it('should set correct depends_on', () => {
-    const result = service.generateDockerComposeYml(validCombination);
+    const result = service.generateDockerComposeYml(validCombination, testRepoPath);
     const parsed = yaml.load(result) as any;
     expect(parsed.services.backend.depends_on).toContain('database');
     expect(parsed.services.frontend.depends_on).toContain('backend');
@@ -94,7 +95,7 @@ describe('DockerTemplateService', () => {
       frontendVersion: '1.0',
       database: 'oracle',
       databaseVersion: '1.0'
-    })).toThrow('Invalid tech stack combination');
+    }, testRepoPath)).toThrow('Invalid tech stack combination');
   });
 
   it('should throw for missing properties', () => {
@@ -103,7 +104,7 @@ describe('DockerTemplateService', () => {
       backendVersion: '20.5.0',
       frontend: 'react',
       frontendVersion: '18.2.0'
-    } as any)).toThrow('Missing required properties');
+    } as any, testRepoPath)).toThrow('Missing required properties');
   });
 
   it('should throw for empty properties', () => {
@@ -114,11 +115,11 @@ describe('DockerTemplateService', () => {
       frontendVersion: '',
       database: '',
       databaseVersion: ''
-    })).toThrow('Empty properties');
+    }, testRepoPath)).toThrow('Empty properties');
   });
 
     it('should generate from preset', () => {
-    const result = service.generateDockerComposeYmlFromPreset('MERN Stack');
+    const result = service.generateDockerComposeYmlFromPreset('MERN Stack', testRepoPath);
     const parsed = yaml.load(result) as any;
     expect(parsed).toHaveProperty('services');
     expect(parsed.services).toHaveProperty('backend');
@@ -127,13 +128,13 @@ describe('DockerTemplateService', () => {
   });
 
   it('should throw for invalid preset name', () => {
-    expect(() => service.generateDockerComposeYmlFromPreset('COBOL Stack'))
+    expect(() => service.generateDockerComposeYmlFromPreset('COBOL Stack', testRepoPath))
       .toThrow('Invalid preset name');
   });
 
   describe('resource limits', () => {
     it('should include resource limits for backend service', () => {
-      const result = service.generateDockerComposeYml(validCombination);
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
       const parsed = yaml.load(result) as any;
 
       expect(parsed.services.backend.deploy.resources.limits.cpus).toBe('0.5');
@@ -141,7 +142,7 @@ describe('DockerTemplateService', () => {
     });
 
     it('should include resource limits for frontend service', () => {
-      const result = service.generateDockerComposeYml(validCombination);
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
       const parsed = yaml.load(result) as any;
 
       expect(parsed.services.frontend.deploy.resources.limits.cpus).toBe('0.5');
@@ -149,7 +150,7 @@ describe('DockerTemplateService', () => {
     });
 
     it('should include resource limits for database service', () => {
-      const result = service.generateDockerComposeYml(validCombination);
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
       const parsed = yaml.load(result) as any;
 
       expect(parsed.services.database.deploy.resources.limits.cpus).toBe('0.5');
@@ -157,7 +158,7 @@ describe('DockerTemplateService', () => {
     });
 
     it('should apply the same resource limit values across all services', () => {
-      const result = service.generateDockerComposeYml(validCombination);
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
       const parsed = yaml.load(result) as any;
 
       const backendLimits = parsed.services.backend.deploy.resources.limits;
@@ -166,6 +167,57 @@ describe('DockerTemplateService', () => {
 
       expect(backendLimits).toEqual(frontendLimits);
       expect(frontendLimits).toEqual(databaseLimits);
+    });
+  });
+  describe('repo mounting and start commands', () => {
+    it('should mount the repo path as a volume for backend service', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.backend.volumes).toContain(`${testRepoPath}:/app`);
+    });
+
+    it('should mount the repo path as a volume for frontend service', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.frontend.volumes).toContain(`${testRepoPath}:/app`);
+    });
+
+    it('should set working_dir to /app for backend service', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.backend.working_dir).toBe('/app');
+    });
+
+    it('should include the correct start command for nodejs backend', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.backend.command).toContain('npm install && npm start');
+    });
+
+    it('should include the correct start command for react frontend', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.frontend.command).toContain('npm install && npm start');
+    });
+
+    it('should use different start commands for different backend technologies', () => {
+      const pythonCombination = { ...validCombination, backend: 'python', backendVersion: '3.12.0' };
+      const result = service.generateDockerComposeYml(pythonCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.backend.command).toContain('pip install -r requirements.txt');
+    });
+
+    it('should not mount volumes for database service', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.database.volumes).not.toContain(`${testRepoPath}:/app`);
     });
   });
 });

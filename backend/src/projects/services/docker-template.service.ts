@@ -17,7 +17,7 @@ export class DockerTemplateService {
     this.techStackService = new TechStackService();
   }
 
-  generateDockerComposeYml(techStack: any): string {
+  generateDockerComposeYml(techStack: any, repoPath: string): string {
     this.validateTechStack(techStack);
 
     const backendKey = techStack.backend;
@@ -52,6 +52,9 @@ export class DockerTemplateService {
       services: {
         backend: {
           image: backendImage,
+          working_dir: '/app',
+          volumes: [`${repoPath}:/app`],
+          command: `sh -c "${techStackConfig.backend[backendKey].startCommand}"`,
           ports: [this.getBackendPort(backendKey)],
           depends_on: ['database'],
           environment: ['NODE_ENV=production', `PORT=${this.getBackendPortValue(backendKey)}`],
@@ -63,6 +66,9 @@ export class DockerTemplateService {
         },
         frontend: {
           image: frontendImage,
+          working_dir: '/app',
+          volumes: [`${repoPath}:/app`],
+          command: `sh -c "${techStackConfig.frontend[frontendKey].startCommand}"`,
           ports: ['80:80'],
           depends_on: ['backend'],
           deploy: {
@@ -72,6 +78,7 @@ export class DockerTemplateService {
           },
         },
         database: {
+          // ← burası DEĞİŞMEZ, volume/working_dir/command eklenmez
           image: databaseImage,
           environment: databaseConfig.environment,
           volumes: databaseConfig.volumes,
@@ -90,14 +97,14 @@ export class DockerTemplateService {
     return dump(composeYaml);
   }
 
-  generateDockerComposeYmlFromPreset(presetName: string): string {
+  generateDockerComposeYmlFromPreset(presetName: string, repoPath: string): string {
     const preset = ImagesList.find((item: any) => item.name === presetName);
 
     if (!preset) {
       throw new Error('Invalid preset name');
     }
 
-    return this.generateDockerComposeYml(preset.techStack);
+    return this.generateDockerComposeYml(preset.techStack, repoPath);
   }
 
   private validateTechStack(techStack: any): void {
