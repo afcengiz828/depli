@@ -1,3 +1,4 @@
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ForbiddenException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
@@ -10,6 +11,13 @@ import { HealthcheckService } from './healthcheck.service';
 import { DomainAssignmentService } from './domain-assignment.service';
 import { SslCertificateService } from './ssl-certificate.service';
 
+jest.mock('fs/promises');
+
+import * as fs from 'fs/promises';
+import { GitCloneService } from './git-clone.service';
+import { DockerTemplateService } from './docker-template.service';
+import { EncryptionService } from './encryption.service';
+
 describe('ContainerLifecycleService', () => {
     let service: ContainerLifecycleService;
     let mockProjectRepository: any;
@@ -18,7 +26,9 @@ describe('ContainerLifecycleService', () => {
     let mockHealthcheckService: any;
     let mockDomainAssignmentService: any;
     let mockSslCertificateService: any;
-
+    let mockGitCloneService: any;
+    let mockDockerTemplateService: any;
+    let mockEncryptionService: any;
     const testUserId = 'user-uuid-123';
     const testProjectId = 'project-uuid-456';
     const testComposeFilePath = '/tmp/depli-workspace/project-uuid-456/docker-compose.yml';
@@ -29,11 +39,21 @@ describe('ContainerLifecycleService', () => {
         name: 'Test Project',
         status: ProjectStatus.STOPPED,
         dockerConfig: 'services:\n  backend:\n    image: node:20-alpine\n',
+        techStack: {
+            backend: 'nodejs',
+            backendVersion: '20.5.0',
+            frontend: 'react',
+            frontendVersion: '18.2.0',
+            database: 'postgresql',
+            databaseVersion: '16',
+        },
+        githubUrl: 'https://github.com/facebook/react',
     };
 
     beforeEach(async () => {
-
         jest.clearAllMocks();
+
+        (fs.access as jest.Mock).mockRejectedValue(new Error('not found'));
 
         mockProjectRepository = {
             findOne: jest.fn(),
@@ -44,6 +64,7 @@ describe('ContainerLifecycleService', () => {
             writeComposeFile: jest.fn(),
             deleteProjectDir: jest.fn(),
             getComposeFilePath: jest.fn().mockReturnValue(testComposeFilePath),
+            getRepoPath: jest.fn().mockReturnValue('/tmp/depli-workspace/project-uuid-456/repo'),
         };
 
         mockDockerCliService = {
@@ -57,8 +78,6 @@ describe('ContainerLifecycleService', () => {
             waitUntilHealthy: jest.fn(),
         };
 
-
-        // beforeEach içinde:
         mockDomainAssignmentService = {
             assignDomain: jest.fn(),
         };
@@ -66,6 +85,19 @@ describe('ContainerLifecycleService', () => {
         mockSslCertificateService = {
             issueCertificate: jest.fn(),
         };
+
+        mockGitCloneService = {
+            cloneRepository: jest.fn(),
+        };
+
+        mockDockerTemplateService = {
+            generateDockerComposeYml: jest.fn().mockReturnValue('generated-yaml-content'),
+        };
+
+        mockEncryptionService = {
+            decrypt: jest.fn(),
+        };
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 ContainerLifecycleService,
@@ -75,10 +107,15 @@ describe('ContainerLifecycleService', () => {
                 { provide: HealthcheckService, useValue: mockHealthcheckService },
                 { provide: DomainAssignmentService, useValue: mockDomainAssignmentService },
                 { provide: SslCertificateService, useValue: mockSslCertificateService },
+                { provide: GitCloneService, useValue: mockGitCloneService },
+                { provide: DockerTemplateService, useValue: mockDockerTemplateService },
+                { provide: EncryptionService, useValue: mockEncryptionService },
             ],
         }).compile();
 
         service = module.get<ContainerLifecycleService>(ContainerLifecycleService);
+
+        mockEncryptionService.decrypt.mockImplementation((value: string) => `decrypted-${value}`);
     });
 
     describe('startContainer', () => {
@@ -90,6 +127,8 @@ describe('ContainerLifecycleService', () => {
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
             mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
             const result = await service.startContainer(testProjectId, testUserId);
             expect(result.status).toBe(ProjectStatus.RUNNING);
         });
@@ -104,13 +143,15 @@ describe('ContainerLifecycleService', () => {
                 ...validProject,
                 userId: 'differentTestUserId',
             });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
             await expect(service.startContainer(testProjectId, testUserId)).rejects.toThrow(ForbiddenException);
         });
 
-        it('should throw BadRequestException when dockerConfig is missing', async () => {
+        it('should throw BadRequestException when techStack is missing', async () => {
             mockProjectRepository.findOne.mockResolvedValue({
                 ...validProject,
-                dockerConfig: null,
+                techStack: null,
             });
             await expect(service.startContainer(testProjectId, testUserId)).rejects.toThrow(BadRequestException);
         });
@@ -128,6 +169,8 @@ describe('ContainerLifecycleService', () => {
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
             mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
             await service.startContainer(testProjectId, testUserId);
 
             expect(savedSnapshots[0].status).toBe(ProjectStatus.PROVISIONING);
@@ -141,11 +184,13 @@ describe('ContainerLifecycleService', () => {
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
             mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
             await service.startContainer(testProjectId, testUserId);
 
             expect(mockComposeFileService.writeComposeFile).toHaveBeenCalledWith(
                 testProjectId,
-                validProject.dockerConfig,
+                'generated-yaml-content',
             );
         });
 
@@ -157,9 +202,11 @@ describe('ContainerLifecycleService', () => {
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
             mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
             await service.startContainer(testProjectId, testUserId);
 
-            expect(mockDockerCliService.up).toHaveBeenCalledWith(testComposeFilePath);
+            expect(mockDockerCliService.up).toHaveBeenCalledWith(testComposeFilePath, {});
         });
 
         it('should set status to stopped when docker up fails', async () => {
@@ -167,6 +214,8 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: false, output: 'port conflict' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await expect(service.startContainer(testProjectId, testUserId)).rejects.toThrow();
 
@@ -182,6 +231,8 @@ describe('ContainerLifecycleService', () => {
             mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(false);
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await expect(service.startContainer(testProjectId, testUserId)).rejects.toThrow();
         });
@@ -194,6 +245,8 @@ describe('ContainerLifecycleService', () => {
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
             mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await service.startContainer(testProjectId, testUserId);
 
@@ -207,6 +260,8 @@ describe('ContainerLifecycleService', () => {
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await service.startContainer(testProjectId, testUserId);
 
@@ -224,6 +279,8 @@ describe('ContainerLifecycleService', () => {
             mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await service.startContainer(testProjectId, testUserId);
 
@@ -238,6 +295,8 @@ describe('ContainerLifecycleService', () => {
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockDomainAssignmentService.assignDomain.mockRejectedValue(new Error('DNS provider unavailable'));
             mockSslCertificateService.issueCertificate.mockResolvedValue({ sslStatus: 'active' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             const result = await service.startContainer(testProjectId, testUserId);
 
@@ -252,6 +311,8 @@ describe('ContainerLifecycleService', () => {
             mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
             mockDomainAssignmentService.assignDomain.mockResolvedValue({ domain: 'test.depli.dev' });
             mockSslCertificateService.issueCertificate.mockRejectedValue(new Error('ACME challenge failed'));
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             const result = await service.startContainer(testProjectId, testUserId);
 
@@ -264,6 +325,8 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.findOne.mockResolvedValue({ ...validProject, status: ProjectStatus.RUNNING });
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockDockerCliService.stop.mockResolvedValue({ success: true, output: 'containers stopped' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             const result = await service.stopContainer(testProjectId, testUserId);
             expect(result.status).toBe(ProjectStatus.STOPPED);
@@ -271,6 +334,8 @@ describe('ContainerLifecycleService', () => {
 
         it('should throw NotFoundException when project does not exist', async () => {
             mockProjectRepository.findOne.mockResolvedValue(null);
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
             await expect(service.stopContainer(testProjectId, testUserId)).rejects.toThrow(NotFoundException);
         });
 
@@ -279,6 +344,8 @@ describe('ContainerLifecycleService', () => {
                 ...validProject,
                 userId: 'differentTestUserId',
             });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
             await expect(service.stopContainer(testProjectId, testUserId)).rejects.toThrow(ForbiddenException);
         });
 
@@ -286,6 +353,8 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.findOne.mockResolvedValue({ ...validProject, status: ProjectStatus.RUNNING });
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockDockerCliService.stop.mockResolvedValue({ success: true, output: '' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await service.stopContainer(testProjectId, testUserId);
 
@@ -299,6 +368,8 @@ describe('ContainerLifecycleService', () => {
             });
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockDockerCliService.stop.mockResolvedValue({ success: false, output: 'container not responding' });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await expect(service.stopContainer(testProjectId, testUserId)).rejects.toThrow();
         });
@@ -310,6 +381,8 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockDockerCliService.down.mockResolvedValue({ success: true, output: 'containers removed' });
             mockComposeFileService.deleteProjectDir.mockResolvedValue(undefined);
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await service.removeContainer(testProjectId, testUserId);
 
@@ -322,6 +395,8 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockDockerCliService.down.mockResolvedValue({ success: true, output: 'containers removed' });
             mockComposeFileService.deleteProjectDir.mockResolvedValue(undefined);
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             const result = await service.removeContainer(testProjectId, testUserId);
 
@@ -338,6 +413,8 @@ describe('ContainerLifecycleService', () => {
                 ...validProject,
                 userId: 'differentTestUserId',
             });
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
             await expect(service.removeContainer(testProjectId, testUserId)).rejects.toThrow(ForbiddenException);
         });
 
@@ -346,6 +423,8 @@ describe('ContainerLifecycleService', () => {
             mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
             mockDockerCliService.down.mockResolvedValue({ success: true, output: 'containers removed' });
             mockComposeFileService.deleteProjectDir.mockResolvedValue(undefined);
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('generated-yaml-content');
 
             await service.removeContainer(testProjectId, testUserId);
 
@@ -353,6 +432,34 @@ describe('ContainerLifecycleService', () => {
             const deleteCallOrder = mockComposeFileService.deleteProjectDir.mock.invocationCallOrder[0];
 
             expect(downCallOrder).toBeLessThan(deleteCallOrder);
+        });
+        it('should clone repository when repo does not exist', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({ ...validProject });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            (fs.access as jest.Mock).mockRejectedValue(new Error('not found'));
+            mockGitCloneService.cloneRepository.mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('yaml');
+            mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
+            mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
+
+            await service.startContainer(testProjectId, testUserId);
+
+            expect(mockGitCloneService.cloneRepository).toHaveBeenCalled();
+        });
+
+        it('should not clone repository when repo already exists', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({ ...validProject });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            (fs.access as jest.Mock).mockResolvedValue(undefined);
+            mockDockerTemplateService.generateDockerComposeYml.mockReturnValue('yaml');
+            mockComposeFileService.writeComposeFile.mockResolvedValue(testComposeFilePath);
+            mockDockerCliService.up.mockResolvedValue({ success: true, output: '' });
+            mockHealthcheckService.waitUntilHealthy.mockResolvedValue(true);
+
+            await service.startContainer(testProjectId, testUserId);
+
+            expect(mockGitCloneService.cloneRepository).not.toHaveBeenCalled();
         });
     });
 });

@@ -8,7 +8,10 @@ import { ProjectStatus } from "../enums/project-status.enum";
 import { HealthcheckService } from "./healthcheck.service";
 import { DomainAssignmentService } from "./domain-assignment.service";
 import { SslCertificateService } from "./ssl-certificate.service";
-
+import {EncryptionService} from "./encryption.service";
+import { DockerTemplateService } from "./docker-template.service";
+import { GitCloneService } from "./git-clone.service";
+import * as fs from 'fs/promises';
 @Injectable()
 export class ContainerLifecycleService {
     constructor(
@@ -19,6 +22,9 @@ export class ContainerLifecycleService {
                     private readonly healthcheckService: HealthcheckService,
                         private readonly domainAssignmentService: DomainAssignmentService,
                             private readonly sslCertificateService: SslCertificateService,
+                                private readonly encryptionService: EncryptionService,
+                                    private readonly gitCloneService: GitCloneService,
+                                        private readonly dockerTemplateService: DockerTemplateService,
     ) {}
 
     private async findProjectOrThrow(projectId: string, userId: string): Promise<ProjectEntity> {
@@ -37,14 +43,33 @@ export class ContainerLifecycleService {
 
     async startContainer(pId: string, uId: string) {
         const project = await this.findProjectOrThrow(pId, uId);
-        if (!project.dockerConfig) {
-            throw new BadRequestException("dockerConfig is missing, technology selection required");
+        if (!project.techStack) {
+            throw new BadRequestException("techStack is missing, technology selection required");
         }
         project.status = ProjectStatus.PROVISIONING;
         await this.projectRepository.save(project);
 
-        const filePath = await this.composeFileService.writeComposeFile(project.id, project.dockerConfig);
-        const result = await this.dockerCliService.up(filePath);
+        const decryptedEnv: Record<string, string> = {};
+        if (project.envVariables) {
+            for (const [key, encryptedValue] of Object.entries(project.envVariables)) {
+                decryptedEnv[key] = this.encryptionService.decrypt(encryptedValue);
+            }
+        }
+
+        const repoPath = this.composeFileService.getRepoPath(project.id);
+        const repoExists = await this.checkRepoExists(repoPath);
+
+        if (!repoExists) {
+            const token = project.githubToken
+            ? this.encryptionService.decrypt(project.githubToken)
+            : undefined;
+            await this.gitCloneService.cloneRepository(project.githubUrl, repoPath, token);
+        }
+
+        const dockerConfig = this.dockerTemplateService.generateDockerComposeYml(project.techStack, repoPath);
+
+        const filePath = await this.composeFileService.writeComposeFile(project.id, dockerConfig);
+        const result = await this.dockerCliService.up(filePath, decryptedEnv);
 
         if (!result.success) {
             project.status = ProjectStatus.STOPPED;
@@ -64,7 +89,7 @@ export class ContainerLifecycleService {
             try {
                 await this.domainAssignmentService.assignDomain(pId, uId);
             } catch (error) {
-                // Domain ataması başarısız olsa bile konteynır çalışmaya devam eder — kullanıcıya loglanır
+                // Domain ataması başarısız olsa bile konteynır çalışmaya devam eder
             }
         }
 
@@ -72,12 +97,22 @@ export class ContainerLifecycleService {
             try {
                 await this.sslCertificateService.issueCertificate(pId, uId);
             } catch (error) {
-                // SSL sertifikası başarısız olsa bile konteynır çalışmaya devam eder — kullanıcıya loglanır
+                // SSL sertifikası başarısız olsa bile konteynır çalışmaya devam eder
             }
         }
 
         project.status = ProjectStatus.RUNNING;
+        project.dockerConfig = dockerConfig;
         return await this.projectRepository.save(project);
+    }
+
+    private async checkRepoExists(repoPath: string): Promise<boolean> {
+        try {
+            await fs.access(repoPath);
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     async stopContainer (pId: string, uId: string) {
