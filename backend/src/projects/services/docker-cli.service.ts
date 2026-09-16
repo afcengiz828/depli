@@ -16,17 +16,17 @@ interface ServiceStatus {
 @Injectable()
 export class DockerCliService {
 
-    async up(composeFilePath: string): Promise<CommandResult> {
+    async up(composeFilePath: string, env?: Record<string, string>): Promise<CommandResult> {
         // execFile('docker', ['compose', '-f', composeFilePath, 'up', '-d'], ...)
-        return this.runCommand(["compose", "-f", composeFilePath, "up", "-d"])
+        return this.runCommand(["compose", "-f", composeFilePath, "up", "-d"], env)
     }
 
     async down(composeFilePath: string): Promise<CommandResult> {
         return this.runCommand(["compose", "-f", composeFilePath, "down"])
     }
 
-    async stop(composeFilePath: string): Promise<CommandResult> {
-        return this.runCommand(["compose", "-f", composeFilePath, "stop"])
+    async stop(composeFilePath: string, env?: Record<string, string>): Promise<CommandResult> {
+        return this.runCommand(["compose", "-f", composeFilePath, "stop"], env)
     }
 
     async start(composeFilePath: string): Promise<CommandResult> {
@@ -85,6 +85,7 @@ export class DockerCliService {
         composeFilePath: string,
         serviceName: string,
         onData: (chunk: string) => void,
+        extraEnv?: Record<string, string>,
     ): { write: (input: string) => void; stop: () => void } {
         const child = spawn('docker', [
             'compose',
@@ -94,7 +95,9 @@ export class DockerCliService {
             '-i',
             serviceName,
             '/bin/sh',
-        ]);
+        ], {
+            env: { ...process.env, ...extraEnv },
+        });
 
         child.stdout.on('data', (chunk: Buffer) => {
             onData(chunk.toString());
@@ -114,15 +117,14 @@ export class DockerCliService {
         };
     }
 
-    private async runCommand(args: string[]): Promise<CommandResult> {
-        // execFile'ı Promise'e saran ortak yardımcı metod
-        // her komut metodunun (up/down/stop/start) bu yardımcıyı kullanması önerilir
+    private async runCommand(args: string[], extraEnv?: Record<string, string>): Promise<CommandResult> {
         try {
-            const {stdout} = await execFileAsync("docker", args);
-            return {success: true, output:stdout};
-        }catch (error: any){
-            return {success: false, output: error.stderr || error.message}
+                const { stdout } = await execFileAsync('docker', args, {
+                env: { ...process.env, ...extraEnv },
+            });
+            return { success: true, output: stdout };
+        } catch (error: any) {
+            return { success: false, output: error.stderr || error.message };
         }
-
     }
 }

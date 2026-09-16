@@ -358,7 +358,23 @@ describe('ContainerLifecycleService', () => {
 
             await service.stopContainer(testProjectId, testUserId);
 
-            expect(mockDockerCliService.stop).toHaveBeenCalledWith(testComposeFilePath);
+            expect(mockDockerCliService.stop).toHaveBeenCalledWith(testComposeFilePath, {});
+        });
+
+        it('should pass decrypted env variables to dockerCliService.stop when set', async () => {
+            mockProjectRepository.findOne.mockResolvedValue({
+                ...validProject,
+                status: ProjectStatus.RUNNING,
+                envVariables: { DB_PASSWORD: 'encrypted-value' },
+            });
+            mockProjectRepository.save.mockImplementation((p: any) => Promise.resolve({ ...p }));
+            mockDockerCliService.stop.mockResolvedValue({ success: true, output: '' });
+
+            await service.stopContainer(testProjectId, testUserId);
+
+            expect(mockDockerCliService.stop).toHaveBeenCalledWith(testComposeFilePath, {
+                DB_PASSWORD: 'decrypted-encrypted-value',
+            });
         });
 
         it('should throw an error when docker stop fails', async () => {

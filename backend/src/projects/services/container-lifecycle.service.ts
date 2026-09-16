@@ -41,6 +41,16 @@ export class ContainerLifecycleService {
         return project;
     }
 
+    private decryptEnvVariables(project: ProjectEntity): Record<string, string> {
+        const decryptedEnv: Record<string, string> = {};
+        if (project.envVariables) {
+            for (const [key, encryptedValue] of Object.entries(project.envVariables)) {
+                decryptedEnv[key] = this.encryptionService.decrypt(encryptedValue);
+            }
+        }
+        return decryptedEnv;
+    }
+
     async startContainer(pId: string, uId: string) {
         const project = await this.findProjectOrThrow(pId, uId);
         if (!project.techStack) {
@@ -49,12 +59,7 @@ export class ContainerLifecycleService {
         project.status = ProjectStatus.PROVISIONING;
         await this.projectRepository.save(project);
 
-        const decryptedEnv: Record<string, string> = {};
-        if (project.envVariables) {
-            for (const [key, encryptedValue] of Object.entries(project.envVariables)) {
-                decryptedEnv[key] = this.encryptionService.decrypt(encryptedValue);
-            }
-        }
+        const decryptedEnv = this.decryptEnvVariables(project);
 
         const repoPath = this.composeFileService.getRepoPath(project.id);
         const repoExists = await this.checkRepoExists(repoPath);
@@ -118,7 +123,8 @@ export class ContainerLifecycleService {
     async stopContainer (pId: string, uId: string) {
         const project = await this.findProjectOrThrow(pId, uId);
         const filePath = this.composeFileService.getComposeFilePath(project.id);
-        const result = await this.dockerCliService.stop(filePath);
+        const decryptedEnv = this.decryptEnvVariables(project);
+        const result = await this.dockerCliService.stop(filePath, decryptedEnv);
 
         if(result.success){
             project.status = ProjectStatus.STOPPED;

@@ -125,6 +125,19 @@ describe('stop', () => {
 
         expect(result.success).toBe(false);
     });
+
+    it('should merge provided env variables into execFile options', async () => {
+        mockSuccess();
+
+        await service.stop(composeFilePath, { DB_USER: 'depli' });
+
+        expect(execFile).toHaveBeenCalledWith(
+            'docker',
+            ['compose', '-f', composeFilePath, 'stop'],
+            expect.objectContaining({ env: expect.objectContaining({ DB_USER: 'depli' }) }),
+            expect.any(Function),
+        );
+    });
 });
 
 describe('start', () => {
@@ -295,7 +308,23 @@ describe('execInteractive', () => {
             '-i',
             'backend',
             '/bin/sh',
-        ]);
+        ], expect.any(Object));
+    });
+
+    it('should merge provided env variables into spawn options', () => {
+        const onData = jest.fn();
+
+        service.execInteractive(composeFilePath, 'backend', onData, { DB_USER: 'depli' });
+
+        expect(spawn).toHaveBeenCalledWith('docker', [
+            'compose',
+            '-f',
+            composeFilePath,
+            'exec',
+            '-i',
+            'backend',
+            '/bin/sh',
+        ], expect.objectContaining({ env: expect.objectContaining({ DB_USER: 'depli' }) }));
     });
 
     it('should invoke onData callback when stdout emits data', () => {

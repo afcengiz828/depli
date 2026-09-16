@@ -67,7 +67,7 @@ describe('DockerTemplateService', () => {
 
   it('should set correct database environment variables for mysql', () => {
     const mysqlCombination = { ...validCombination, database: 'mysql', databaseVersion: '8.0' };
-    const result = service.generateDockerComposeYml(mysqlCombination);
+    const result = service.generateDockerComposeYml(mysqlCombination, "");
     const parsed = yaml.load(result) as any;
     const env = parsed.services.database.environment;
     expect(env).toContain('MYSQL_ROOT_PASSWORD=${DB_PASSWORD}');
@@ -195,14 +195,16 @@ describe('DockerTemplateService', () => {
       const result = service.generateDockerComposeYml(validCombination, testRepoPath);
       const parsed = yaml.load(result) as any;
 
-      expect(parsed.services.backend.command).toContain('npm install && npm start');
+      expect(parsed.services.backend.command).toContain('npm install');
+      expect(parsed.services.backend.command).toContain('&& npm start');
     });
 
     it('should include the correct start command for react frontend', () => {
       const result = service.generateDockerComposeYml(validCombination, testRepoPath);
       const parsed = yaml.load(result) as any;
 
-      expect(parsed.services.frontend.command).toContain('npm install && npm start');
+      expect(parsed.services.frontend.command).toContain('npm install');
+      expect(parsed.services.frontend.command).toContain('&& npm start');
     });
 
     it('should use different start commands for different backend technologies', () => {
@@ -218,6 +220,27 @@ describe('DockerTemplateService', () => {
       const parsed = yaml.load(result) as any;
 
       expect(parsed.services.database.volumes).not.toContain(`${testRepoPath}:/app`);
+    });
+
+    it('should mount node_modules as an anonymous volume for backend service', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.backend.volumes).toContain('/app/node_modules');
+    });
+
+    it('should mount node_modules as an anonymous volume for frontend service', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.frontend.volumes).toContain('/app/node_modules');
+    });
+
+    it('should not mount node_modules for database service', () => {
+      const result = service.generateDockerComposeYml(validCombination, testRepoPath);
+      const parsed = yaml.load(result) as any;
+
+      expect(parsed.services.database.volumes).not.toContain('/app/node_modules');
     });
   });
 });

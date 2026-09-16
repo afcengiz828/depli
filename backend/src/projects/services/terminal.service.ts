@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ProjectEntity } from '../entities/project.entity';
 import { ComposeFileService } from './compose-file.service';
 import { DockerCliService } from './docker-cli.service';
+import { EncryptionService } from './encryption.service';
 
 @Injectable()
 export class TerminalService {
@@ -12,6 +13,7 @@ export class TerminalService {
         private readonly projectRepository: Repository<ProjectEntity>,
             private readonly composeFileService: ComposeFileService,
                 private readonly dockerCliService: DockerCliService,
+                    private readonly encryptionService: EncryptionService,
     ) {}
 
     async startTerminal(
@@ -32,6 +34,13 @@ export class TerminalService {
 
         const filePath = this.composeFileService.getComposeFilePath(projectId);
 
-        return this.dockerCliService.execInteractive(filePath, serviceName, onData);
+        const decryptedEnv: Record<string, string> = {};
+        if (project.envVariables) {
+            for (const [key, encryptedValue] of Object.entries(project.envVariables)) {
+                decryptedEnv[key] = this.encryptionService.decrypt(encryptedValue);
+            }
+        }
+
+        return this.dockerCliService.execInteractive(filePath, serviceName, onData, decryptedEnv);
     }
 }

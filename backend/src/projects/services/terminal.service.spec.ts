@@ -4,6 +4,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { TerminalService } from './terminal.service';
 import { ComposeFileService } from './compose-file.service';
 import { DockerCliService } from './docker-cli.service';
+import { EncryptionService } from './encryption.service';
 import { ProjectEntity } from '../entities/project.entity';
 
 describe('TerminalService', () => {
@@ -11,6 +12,7 @@ describe('TerminalService', () => {
     let mockProjectRepository: any;
     let mockComposeFileService: any;
     let mockDockerCliService: any;
+    let mockEncryptionService: any;
 
     const testUserId = 'user-uuid-123';
     const testProjectId = 'project-uuid-456';
@@ -36,12 +38,17 @@ beforeEach(async () => {
         execInteractive: jest.fn(),
     };
 
+    mockEncryptionService = {
+        decrypt: jest.fn().mockImplementation((value: string) => `decrypted-${value}`),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
         providers: [
             TerminalService,
             { provide: getRepositoryToken(ProjectEntity), useValue: mockProjectRepository },
                                                                  { provide: ComposeFileService, useValue: mockComposeFileService },
                                                                  { provide: DockerCliService, useValue: mockDockerCliService },
+                                                                 { provide: EncryptionService, useValue: mockEncryptionService },
         ],
     }).compile();
 
@@ -73,6 +80,25 @@ describe('startTerminal', () => {
             testComposeFilePath,
             testServiceName,
             onData,
+            {},
+        );
+    });
+
+    it('should pass decrypted env variables to dockerCliService.execInteractive when set', async () => {
+        mockProjectRepository.findOne.mockResolvedValue({
+            ...validProject,
+            envVariables: { DB_PASSWORD: 'encrypted-value' },
+        });
+        mockDockerCliService.execInteractive.mockReturnValue({ write: jest.fn(), stop: jest.fn() });
+
+        const onData = jest.fn();
+        await service.startTerminal(testProjectId, testUserId, testServiceName, onData);
+
+        expect(mockDockerCliService.execInteractive).toHaveBeenCalledWith(
+            testComposeFilePath,
+            testServiceName,
+            onData,
+            { DB_PASSWORD: 'decrypted-encrypted-value' },
         );
     });
 
