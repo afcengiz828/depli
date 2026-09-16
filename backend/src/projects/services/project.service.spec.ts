@@ -7,6 +7,8 @@ import { GithubIntegrationService } from '..//services/github-integration.servic
 import { TechStackService } from '..//services/tech-stack.service';
 import { DockerTemplateService } from '..//services/docker-template.service';
 import { EncryptionService } from '..//services/encryption.service';
+import { ComposeFileService } from '..//services/compose-file.service';
+import { DockerCliService } from '..//services/docker-cli.service';
 import { ProjectStatus } from '../enums/project-status.enum';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -21,6 +23,8 @@ describe('ProjectService', () => {
     let mockTechStackService: Partial<TechStackService>;
     let mockDockerTemplateService: Partial<DockerTemplateService>;
     let mockEncryptionService: Partial<EncryptionService>;
+    let mockComposeFileService: Partial<ComposeFileService>;
+    let mockDockerCliService: Partial<DockerCliService>;
 
     beforeEach(async () => {
         // mock repository
@@ -50,6 +54,15 @@ describe('ProjectService', () => {
             encrypt: jest.fn().mockReturnValue('encrypted-token'),
         };
 
+        mockComposeFileService = {
+            getComposeFilePath: jest.fn().mockReturnValue('/tmp/depli-test-workspace/project-uuid/docker-compose.yml'),
+            deleteProjectDir: jest.fn().mockResolvedValue(undefined),
+        };
+
+        mockDockerCliService = {
+            down: jest.fn().mockResolvedValue({ success: true, output: '' }),
+        };
+
         // Create a testing module project service ı taklit eden sahte modül
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -60,6 +73,8 @@ describe('ProjectService', () => {
                 { provide: TechStackService, useValue: mockTechStackService },
                 { provide: DockerTemplateService, useValue: mockDockerTemplateService },
                 { provide: EncryptionService, useValue: mockEncryptionService },
+                { provide: ComposeFileService, useValue: mockComposeFileService },
+                { provide: DockerCliService, useValue: mockDockerCliService },
             ]
         }).compile();
 
@@ -275,6 +290,33 @@ describe('ProjectService', () => {
             await service.deleteProject('project-uuid', 'user-uuid');
 
             // Remove metodu doğru proje için çağrılmış olmalı
+            expect(mockProjectRepository.remove).toHaveBeenCalledWith(project);
+        });
+
+        it('should stop the container and clean up compose files before removing the project', async () => {
+            const project = { id: 'project-uuid', userId: 'user-uuid' };
+
+            (mockProjectRepository.findOne as jest.Mock).mockResolvedValue(project);
+            (mockProjectRepository.remove as jest.Mock).mockResolvedValue(project);
+
+            await service.deleteProject('project-uuid', 'user-uuid');
+
+            expect(mockDockerCliService.down).toHaveBeenCalledWith(
+                '/tmp/depli-test-workspace/project-uuid/docker-compose.yml',
+            );
+            expect(mockComposeFileService.deleteProjectDir).toHaveBeenCalledWith('project-uuid');
+            expect(mockProjectRepository.remove).toHaveBeenCalledWith(project);
+        });
+
+        it('should still delete the project even if container cleanup fails', async () => {
+            const project = { id: 'project-uuid', userId: 'user-uuid' };
+
+            (mockProjectRepository.findOne as jest.Mock).mockResolvedValue(project);
+            (mockProjectRepository.remove as jest.Mock).mockResolvedValue(project);
+            (mockDockerCliService.down as jest.Mock).mockRejectedValue(new Error('compose file not found'));
+
+            await service.deleteProject('project-uuid', 'user-uuid');
+
             expect(mockProjectRepository.remove).toHaveBeenCalledWith(project);
         });
 

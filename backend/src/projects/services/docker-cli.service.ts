@@ -22,11 +22,11 @@ export class DockerCliService {
     }
 
     async down(composeFilePath: string): Promise<CommandResult> {
-        return this.runCommand(["compose", "-f", composeFilePath, "down"])
+        return this.runCommand(["compose", "-f", composeFilePath, "down", "-t", "5"])
     }
 
     async stop(composeFilePath: string, env?: Record<string, string>): Promise<CommandResult> {
-        return this.runCommand(["compose", "-f", composeFilePath, "stop"], env)
+        return this.runCommand(["compose", "-f", composeFilePath, "stop", "-t", "5"], env)
     }
 
     async start(composeFilePath: string): Promise<CommandResult> {

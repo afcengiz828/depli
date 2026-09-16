@@ -5,6 +5,8 @@ import { BadRequestException, ForbiddenException, NotFoundException, UseFilters 
 import { TechStackService } from "./tech-stack.service";
 import { EncryptionService } from "./encryption.service"
 import { DockerTemplateService } from "./docker-template.service"
+import { ComposeFileService } from "./compose-file.service"
+import { DockerCliService } from "./docker-cli.service"
 import { ProjectEntity } from "../entities/project.entity"
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,6 +21,8 @@ export class ProjectService {
     private readonly techStackService: TechStackService,
     private readonly dockerTemplateService: DockerTemplateService,
     private readonly encryptionService: EncryptionService,
+    private readonly composeFileService: ComposeFileService,
+    private readonly dockerCliService: DockerCliService,
   ) {}
 
     async createProject(projectData: CreateProjectDto, userId: string): Promise<ProjectEntity> {
@@ -92,6 +96,18 @@ export class ProjectService {
 
         if (project.userId !== userId) {
             throw new ForbiddenException("Different users...");
+        }
+
+        // Proje silinmeden önce, arkada hâlâ çalışan bir konteynır varsa
+        // önce onu durdurup diskteki compose dosyalarını temizliyoruz.
+        // Compose dosyası hiç oluşmamışsa (proje hiç başlatılmadıysa) bu adımlar
+        // sessizce başarısız olur/no-op olur, silme işlemini engellemez.
+        try {
+            const filePath = this.composeFileService.getComposeFilePath(projectId);
+            await this.dockerCliService.down(filePath);
+            await this.composeFileService.deleteProjectDir(projectId);
+        } catch (error) {
+            // Temizlik başarısız olsa bile proje kaydının silinmesine devam edilir
         }
 
         return this.projectRepository.remove(project);

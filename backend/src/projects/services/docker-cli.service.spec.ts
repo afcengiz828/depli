@@ -73,7 +73,7 @@ describe('down', () => {
 
         expect(execFile).toHaveBeenCalledWith(
             'docker',
-            ['compose', '-f', composeFilePath, 'down'],
+            ['compose', '-f', composeFilePath, 'down', '-t', '5'],
             expect.any(Object),
             expect.any(Function),
         );
@@ -104,7 +104,7 @@ describe('stop', () => {
 
         expect(execFile).toHaveBeenCalledWith(
             'docker',
-            ['compose', '-f', composeFilePath, 'stop'],
+            ['compose', '-f', composeFilePath, 'stop', '-t', '5'],
             expect.any(Object),
             expect.any(Function),
         );
@@ -133,7 +133,7 @@ describe('stop', () => {
 
         expect(execFile).toHaveBeenCalledWith(
             'docker',
-            ['compose', '-f', composeFilePath, 'stop'],
+            ['compose', '-f', composeFilePath, 'stop', '-t', '5'],
             expect.objectContaining({ env: expect.objectContaining({ DB_USER: 'depli' }) }),
             expect.any(Function),
         );
